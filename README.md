@@ -8,5 +8,5 @@ This project contains a Python script (`backend/main.py`) that collects trip det
 
 - Reads destination, country, days, budget, currency, and travel month.
 - Displays a formatted trip summary using f-strings.
-- Core Challenge: Calculates and displays cost breakdown.
-- Bonus: Alerts if budget is exceeded.
+- Challenge: Calculates and displays cost breakdown.
+- Alerts if budget is exceeded.
