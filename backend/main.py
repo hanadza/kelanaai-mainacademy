@@ -24,33 +24,51 @@
 # print(f"Budget: {budget}")
 # print(f"Style: {travel_style}")
 
-def print_trip_summary(destination, days, budget, travel_style):
+def print_trip_summary(destination, country, days, budget, currency, travel_month):
+    print("\n=================================")
+    print("KelanaAI")
     print("=================================")
-    print("KalanaAI")
+    print(f"Destination : {destination}")
+    print(f"Country     : {country}")
+    print(f"Days        : {days}")
+    print(f"Budget      : {budget} {currency}")
+    print(f"Currency    : {currency}")
+    print(f"Travel Month: {travel_month}")
+    print("=================================\n")
+
+destination = input("Destination: ")
+country = input("Country: ")
+days = int(input("Days: "))
+budget = float(input("Budget: "))
+currency = input("Currency: ")
+travel_month = input("Travel Month: ")
+
+print_trip_summary(destination, country, days, budget, currency, travel_month)
+
+
+# Challenge: Add a cost breakdown
+def print_cost_breakdown(hotel_cost, transportation_cost, food_cost, miscellaneous_cost):
+    total = hotel_cost + transportation_cost + food_cost + miscellaneous_cost
+    print("\n=================================")
+    print("Cost Breakdown")
     print("=================================")
-    print(f"Destination: {destination}")
-    print(f"Days: {days}")
-    print(f"Budget: {budget}")
-    print(f"Style: {travel_style}")
+    print(f"Hotel Cost: {hotel_cost}")
+    print(f"Transportation Cost: {transportation_cost}")
+    print(f"Food Cost: {food_cost}")
+    print(f"Miscellaneous Cost: {miscellaneous_cost}")
+    print("=================================")
+    print(f"Total Estimated Cost: {total}")
+    return total
 
-print_trip_summary("Japan", 5, 1500, "Family")
-print_trip_summary("Bali", 3, 800, "Backpacker")
+hotel_cost = float(input("Hotel Cost: "))
+transportation_cost = float(input("Transportation Cost: "))
+food_cost = float(input("Food Cost: "))
+miscellaneous_cost = float(input("Miscellaneous Cost: "))
 
-# Core Challenge: Add a cost breakdown
-hotel_cost = 500
-transportation_cost = 200
-food_cost = 300
-miscellaneous_cost = 100
+total_cost = print_cost_breakdown(hotel_cost, transportation_cost, food_cost, miscellaneous_cost)
 
-total = hotel_cost + transportation_cost + food_cost + miscellaneous_cost
-print("=================================")
-print(f"Hotel Cost: {hotel_cost}")
-print(f"Transportation Cost: {transportation_cost}")
-print(f"Food Cost: {food_cost}")
-print(f"Miscellaneous Cost: {miscellaneous_cost}")
-print(f"Total Estimated Cost: {total}")
-
-# Bonus: Budget exceeded alert
-budget = 1000
-if total > budget:
-    print("⚠️ Budget exceeded.")
+# Budget exceeded alert
+if total_cost > budget:
+    print(f"Budget exceeded by {total_cost - budget} {currency}!")
+else:
+    print(f"Budget is sufficient. Remaining budget: {budget - total_cost} {currency}")
