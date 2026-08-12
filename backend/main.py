@@ -1,30 +1,8 @@
-#1
-# Variables store the trip data
-# destination = "Japan"
-# days = 5
-# budget = 1500
-# travel_style = "Family"
+from services.trip_service import calculate_daily_budget, get_trip_category, get_transportation_recommendation, get_recommended_places, get_travel_season
 
-#2
-# destination = input("Destination: ")
-# days = int(input("Days: "))
-# budget = float(input("Budget: "))
-# travel_style = input("Travel Style: ")
-
-#1
-# print(destination)
-# print(days)
-# print(budget)
-# print(travel_style)
-
-#2
-# print("===========================")
-# print(f"Destination: {destination}")
-# print(f"Days: {days}")
-# print(f"Budget: {budget}")
-# print(f"Style: {travel_style}")
-
+# Meet Sesi 1
 def print_trip_summary(destination, country, days, budget, currency, travel_month):
+    season = get_travel_season(travel_month)
     print("\n=================================")
     print("KelanaAI")
     print("=================================")
@@ -34,9 +12,25 @@ def print_trip_summary(destination, country, days, budget, currency, travel_mont
     print(f"Budget      : {budget} {currency}")
     print(f"Currency    : {currency}")
     print(f"Travel Month: {travel_month}")
+    print(f"Season      : {season}")
     print("=================================\n")
 
-destination = input("Destination: ")
+print("\n=================================")
+print("Input Data KelanaAI")
+print("=================================")
+destinations = []
+while True:
+    dest = input("Destination (type 'done' to finish): ")
+    if dest.lower() == 'done':
+        break
+    destinations.append(dest)
+
+print("Your Destinations", end="")
+for i, d in enumerate(destinations):
+    print(f" {i+1}. {d}", end="")
+print()
+
+destination = ", ".join(destinations)
 country = input("Country: ")
 days = int(input("Days: "))
 budget = float(input("Budget: "))
@@ -72,3 +66,25 @@ if total_cost > budget:
     print(f"Budget exceeded by {total_cost - budget} {currency}!")
 else:
     print(f"Budget is sufficient. Remaining budget: {budget - total_cost} {currency}")
+
+# Meet Sesi 2
+category = get_trip_category(budget)
+print(f"Travel Category: {category}")
+
+transportation = get_transportation_recommendation(category)
+print(f"Recommended Transportation: {transportation}")
+
+daily_budget = calculate_daily_budget(budget, days)
+print(f"Daily Budget: {daily_budget} {currency}/day")
+
+# List of Dictionaries
+print("\n=================================")
+print("Recommended Places")
+print("=================================")
+# Loop through the list of destinations
+for dest in destinations:
+    print(f"|=== {dest} ===|")
+    recommended_places = get_recommended_places(dest)
+    for place in recommended_places:
+        print(f" - {place}")
+    print("|===============|")

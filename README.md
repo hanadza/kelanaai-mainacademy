@@ -10,3 +10,10 @@ This project contains a Python script (`backend/main.py`) that collects trip det
 - Displays a formatted trip summary using f-strings.
 - Challenge: Calculates and displays cost breakdown.
 - Alerts if budget is exceeded.
+
+## Session 2 Homework - Layered Architecture & Business Rules
+
+### Features Added
+- Extracted business logic into `services/trip_service.py`.
+- Added logic for Travel Category, Transportation Recommendation, and Multiple Destinations.
+- Added Travel Season recommendation based on month.
