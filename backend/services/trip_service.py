@@ -1,4 +1,6 @@
-# 1. Reusable Function
+from backend.models.trip import Trip
+
+# 1. lib function
 def calculate_daily_budget(budget, days):
     return budget / days
 
