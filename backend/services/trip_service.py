@@ -1,42 +1,69 @@
-from backend.models.trip import Trip
-
-# 1. lib function
 def calculate_daily_budget(budget, days):
     return budget / days
 
-# 2. Conditional Logic
+def get_total_estimated_cost(
+    hotel_cost,
+    food_cost,
+    transportation_cost,
+    miscellaneous_cost,
+):
+    return (
+        hotel_cost
+        + food_cost
+        + transportation_cost
+        +miscellaneous_cost
+    )
+
+    
 def get_trip_category(budget):
     if budget < 1000:
         return "Backpacker"
-    elif budget < 3000:
-        return "Standard"
+    elif budget <= 3000:
+        return "Standart"
     else:
         return "Luxury"
 
-# 3. Data Structures (Dictionary)
+        
 def get_transportation_recommendation(category):
-    if category == "Backpacker":
+    if category.lower() == "backpacker":
         return "Bus"
-    elif category == "Standard":
+    elif category.lower() == "standart":
         return "Train"
     else:
         return "Flight"
 
-# 4. List inside Dictionary (Nested Data Structure)
-def get_recommended_places(destination):
-    recommendations = {
-        "Japan": ["Tokyo Tower", "Shibuya", "Mount Fuji"],
-        "Bali": ["Ubud", "Kuta Beach", "Tanah Lot"],
-        "Singapore": ["Marina Bay Sands", "Gardens by the Bay", "Sentosa"],
-    }
-    
-    return recommendations.get(destination, ["City Center", "Local Market", "Popular Landmark"])
 
-# 5. Travel Season Logic
 def get_travel_season(month):
-    if month == "December" or month == "12":
+    month = month.lower()
+    
+    if month == "december":
         return "Peak Season"
-    elif month == "June" or month == "6":
+    elif month == "June":
         return "Holiday Season"
     else:
-        return "Regular Season"
+        return "Reguler Season"
+        
+
+def get_recommended_places(destination):
+    recommendations = {
+        "japan": [
+            "Tokyo Tower", 
+            "Shibuya", 
+            "Mount Fuji"
+        ],
+        "indonesia": [
+            "Jakarta",
+            "Yogyakarta",
+            "Bali"
+        ],
+        "bali": [
+            "Ubud", 
+            "Kuta Beach", 
+            "Tanah Lot"
+        ],
+    }
+
+    return recommendations.get(
+        destination, 
+        ["City Center", "Local Market", "Popular Landmark"]
+    )

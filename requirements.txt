@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
-sqlalchemy  #the ORM
-psycopg2-binary #the database driver
-python-dotenv #use it to load environment variables
+sqlalchemy
+psycopg2-binary
+python-dotenv
+boto3==1.43.56

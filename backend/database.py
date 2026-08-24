@@ -3,14 +3,23 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(BASE_DIR, ".env"))
-
+# load .env so os.getenv() can read it
+load_dotenv()
+#connection string from .env - never hardcode secrets
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL belum dikonfigurasi. Buat file .env di root project "
+        "dan isi DATABASE_URL PostgreSQL."
+    )
+
+# engine = the connection pool
 engine = create_engine(DATABASE_URL)
+# SessionLocal = a factory for DB sessions
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
+# Base = all ORM models inherit from this
 Base = declarative_base()
 
 # create all tables

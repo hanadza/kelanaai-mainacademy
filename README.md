@@ -49,11 +49,51 @@ This project contains a Python script (`backend/main.py`) that collects trip det
   - `DELETE /api/v1/trips/{id}` : Deletes a trip from the database.
 
 ### How to Run
-1. Make sure your virtual environment is activated and you have a `.env` file inside the `backend/` folder with your `DATABASE_URL`.
+1. Make sure your virtual environment is activated and you have a `.env` file in the project root with your `DATABASE_URL`.
 2. Ensure your PostgreSQL server is running and the database (e.g., `kelana_db`) is created.
-3. Start the FastAPI server using Uvicorn from the root folder:
+3. Start the FastAPI server from the `backend/` folder because the application imports `database`, `models`, and `services` directly:
    ```bash
-   uvicorn backend.main:app --reload
+   cd backend
+   uvicorn main:app --reload
    ```
 4. Open the interactive API documentation at:
    **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**
+
+## Session 5 - from rule-based logic to your first AI-Generated itinerary
+
+### Features Added
+- Integrated **AWS Bedrock Runtime** with the Amazon Nova Lite model.
+- Added an AI prompt that generates a detailed itinerary based on destination, duration, budget, month, travel season, and travel style.
+- The generated itinerary includes morning, afternoon, and evening activities, transportation, and estimated costs.
+- Stored the AI-generated recommendation in the `ai_recommendation` column of each trip.
+- Added an endpoint to generate or regenerate an itinerary for an existing trip.
+
+### AWS Bedrock Configuration
+Create a `.env` file in the project root and add the required configuration:
+
+```env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/kelana_db
+AWS_BEARER_TOKEN_BEDROCK=your_bedrock_token
+AWS_REGION=ap-southeast-2
+MODEL_ID=amazon.nova-lite-v1:0
+```
+
+Do not commit `.env` or expose the Bedrock token. The `.env` file is already excluded by `.gitignore`.
+
+### AI Itinerary Endpoints
+- `POST /api/v1/trips` : Creates and saves a trip, then generates an AI itinerary.
+- `POST /api/v1/trips/{id}/generate` : Generates or regenerates the AI itinerary for an existing trip.
+
+Example request for `POST /api/v1/trips`:
+
+```json
+{
+  "destination": "Japan",
+  "days": 5,
+  "budget": 2000,
+  "month": "April",
+  "travel_style": "Family"
+}
+```
+
+The API returns the saved trip together with the generated Markdown itinerary in `ai_recommendation`.
