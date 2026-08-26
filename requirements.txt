@@ -4,3 +4,4 @@ sqlalchemy
 psycopg2-binary
 python-dotenv
 boto3==1.43.56
+certifi>=2024.8.30

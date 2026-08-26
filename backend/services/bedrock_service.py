@@ -1,6 +1,7 @@
 import os
 import json
 import boto3
+import certifi
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -23,6 +24,7 @@ def get_bedrock_client():
         region_name=region,
         aws_access_key_id="Bearer",
         aws_secret_access_key=bearer_token,
+        verify=certifi.where(),
     )
 
     return client

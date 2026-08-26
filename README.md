@@ -97,3 +97,43 @@ Example request for `POST /api/v1/trips`:
 ```
 
 The API returns the saved trip together with the generated Markdown itinerary in `ai_recommendation`.
+
+## Session 6 - Next.js Frontend
+
+Session 6 adds a web interface so users can interact with KelanaAI through a browser instead of calling the API directly.
+
+### Features Added
+
+- Created a **Next.js** frontend using React and TypeScript in the `frontend/` folder.
+- Built a travel form for destination, budget, duration, month, and travel style.
+- Connected the form to `POST http://localhost:8000/api/v1/trips` using the browser `fetch` API.
+- Displays the generated trip details and AI itinerary returned by Amazon Bedrock.
+- Parses the Markdown itinerary into headings, paragraphs, and bullet lists for readable rendering.
+- Added destination imagery with a fallback image for unsupported destinations.
+- Added loading and error states, including a retry action when the API request fails.
+
+### Run the Full Application
+
+Start the backend in one terminal:
+
+```bash
+source .venv/bin/activate
+cd backend
+uvicorn main:app --reload
+```
+
+Start the Next.js frontend in a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the frontend at **[http://localhost:3000](http://localhost:3000)**. The frontend expects the FastAPI backend to be available at **[http://localhost:8000](http://localhost:8000)**.
+
+### Frontend Structure
+
+- `frontend/app/page.tsx` : Main planner page, form handling, API request, and itinerary display.
+- `frontend/app/globals.css` : Global styles, responsive layout, loading animation, and error state styling.
+- `frontend/public/` : Static assets used by the frontend.
