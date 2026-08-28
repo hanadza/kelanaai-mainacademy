@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
 from services.trip_service import (
     calculate_daily_budget,
     get_trip_category,
@@ -10,6 +12,8 @@ from services.trip_service import (
 from services.bedrock_service import get_ai_recommendation
 from database import SessionLocal, init_db
 from models.trip import Trip
+
+load_dotenv()
 
 
 class TripRequest(BaseModel):
@@ -30,7 +34,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    # Reads the Next.js origin from backend/.env (FRONTEND_URL). In
+    # production this is the only line you change - e.g. to your Vercel URL.
+    allow_origins=[
+        os.getenv("FRONTEND_URL", "http://localhost:3000"),
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,7 +56,7 @@ def home():
 
 # a GET health endpoint at the root path
 @app.get("/health")
-def home():
+def health():
   return {
     "status" : "Ok"
   }
@@ -70,7 +79,9 @@ def transportations():
 @app.get("/api/v1/trips")
 def list_trips():
     db = SessionLocal()
-    trips = db.query(Trip).all()
+    # Newest first, so a trip generated just now appears at the top of the
+    # dashboard without the user having to sort or scroll (Session 7, Part 8).
+    trips = db.query(Trip).order_by(Trip.id.desc()).all()
     db.close()
     return trips
 

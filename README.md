@@ -76,6 +76,10 @@ DATABASE_URL=postgresql://postgres:password@localhost:5432/kelana_db
 AWS_BEARER_TOKEN_BEDROCK=your_bedrock_token
 AWS_REGION=ap-southeast-2
 MODEL_ID=amazon.nova-lite-v1:0
+
+# Session 7: origin allowed to call the API (CORS). Defaults to
+# http://localhost:3000 if not set - only needed to override for prod.
+FRONTEND_URL=http://localhost:3000
 ```
 
 Do not commit `.env` or expose the Bedrock token. The `.env` file is already excluded by `.gitignore`.
@@ -132,8 +136,76 @@ npm run dev
 
 Open the frontend at **[http://localhost:3000](http://localhost:3000)**. The frontend expects the FastAPI backend to be available at **[http://localhost:8000](http://localhost:8000)**.
 
-### Frontend Structure
+## Session 7 - Connecting the Brain and the Face (Organize & Present Information)
 
-- `frontend/app/page.tsx` : Main planner page, form handling, API request, and itinerary display.
-- `frontend/app/globals.css` : Global styles, responsive layout, loading animation, and error state styling.
-- `frontend/public/` : Static assets used by the frontend.
+### Why
+Up to Session 6, `app/page.tsx` did everything: form state, `fetch()` calls, image lookup, Markdown parsing, and rendering. That doesn't scale. Session 7 splits KelanaAI into a proper multi-page app with a clean architecture - and makes sure the app talks to Amazon Bedrock only when it actually needs to (Part 1: "Don't call Bedrock every time").
+
+### Project Structure
+```
+frontend/
+├── app/
+│   ├── page.tsx                    # / - single-screen trip form (generates a trip, then redirects)
+│   ├── layout.tsx                  # Root layout & font configurations
+│   ├── globals.css                 # Custom design tokens, retro-editorial styling, and theme
+│   └── trips/
+│       ├── page.tsx                # /trips - trip history dashboard (Server Component)
+│       └── [id]/
+│           ├── page.tsx            # /trips/[id] - trip detail (dynamic route)
+│           └── not-found.tsx       # friendly 404 for a missing trip id
+├── components/                      # Reusable UI components
+│   ├── DeleteTripButton.tsx        # Delete action with safety confirmation modal
+│   ├── EmptyState.tsx              # Fallback state when no trips exist
+│   ├── ErrorState.tsx              # Error display with retry handler
+│   ├── LoadingState.tsx            # Loading spinner and overlay
+│   ├── Recommendation.tsx          # Markdown itinerary renderer
+│   ├── TripCard.tsx                # Rich trip card (flags, budget formatting, color-coded badges)
+│   ├── TripForm.tsx                # Travel planning form
+│   └── TripListWithPagination.tsx  # Paginated list container (10 items per page)
+├── lib/
+│   ├── destinationHelpers.ts       # Flag emoji detector & currency formatter
+│   ├── destinationImage.ts         # Photo lookup per destination
+│   └── markdown.tsx                # Markdown parser + inline bold renderer
+├── services/
+│   └── tripService.ts              # Centralized API calls (getTrips, getTrip, generateTrip, deleteTrip)
+├── types/
+│   └── trip.ts                     # Trip / TripRequest TypeScript interfaces
+└── public/                         # Static assets (world map image, icons)
+```
+
+### Features Implemented
+- **Centralized API Service (`services/tripService.ts`)**: `getTrips()`, `getTrip(id)`, `generateTrip(data)`, and `deleteTrip(id)`. Pages import these helpers instead of making raw `fetch()` calls.
+- **Dynamic Routing (`/trips/[id]`)**: Single template serving each trip detail with representative hero photography and formatted AI itinerary.
+- **Delete Trip History**: Ability to delete saved trips from both the dashboard list and detail view with confirmation dialogs, calling `DELETE /api/v1/trips/{id}`.
+- **Enhanced Trip Cards (`TripCard.tsx`)**:
+  - 🚩 **Destination Flags/Icons**: Country flags (e.g., 🇯🇵 Japan, 🇮🇩 Indonesia/Bali, 🇮🇹 Italy, 🇫🇷 France, 🇺🇸 USA, 🇹🇭 Thailand) mapped automatically.
+  - 💰 **Currency & Budget Formatting**: Clean formatting (e.g., `USD 2,000` instead of raw numbers).
+  - 🏷️ **Color-Coded Category Badges**: Distinct badges for *Backpacker* (Amber), *Standard* (Emerald), and *Luxury* (Purple).
+  - 🎒 **Travel Style Badges**: Visual tags with icons for *Family* (👨‍👩‍👧‍👦), *Solo* (🎒), *Couple* (💑), *Adventure* (🧗), *Cultural* (🏛️), and *Relaxing* (🏖️).
+- **Pagination (`TripListWithPagination.tsx`)**: Automatic pagination controls (10 items per page) with page number buttons, item counts, and next/previous controls.
+- **Single-Screen Homepage (`page.tsx`)**: Streamlined single-page viewport on desktop with a modal loading overlay when generating itineraries.
+- **Consistent Retro Button Styling**: Unified yellow block action buttons with bold borders and offset drop-shadows.
+
+### How to Run
+
+1. **Start the Backend (Terminal 1):**
+   ```powershell
+   .venv\Scripts\Activate.ps1
+   cd backend
+   uvicorn main:app --reload --port 8000
+   ```
+   - API Docs: **[http://localhost:8000/docs](http://localhost:8000/docs)**
+
+2. **Start the Frontend (Terminal 2):**
+   ```powershell
+   cd frontend
+   npm run dev
+   ```
+   - Web App: **[http://localhost:3000](http://localhost:3000)**
+
+### Testing the 3-Page Flow:
+1. Open `http://localhost:3000`, enter your trip preferences, and click **Generate AI Trip**.
+2. After the AI generation modal finishes, you will be automatically redirected to `http://localhost:3000/trips`.
+3. View the new trip at the top of the history list with flags, badges, and formatted budget.
+4. Click **View Details →** to inspect the full AI itinerary and travel breakdown.
+5. Click **Delete Trip** (either from list or detail page) to safely remove the record from PostgreSQL.
