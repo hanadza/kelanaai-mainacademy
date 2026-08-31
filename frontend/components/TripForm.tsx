@@ -304,7 +304,7 @@ export default function TripForm({ onGenerate, loading }: TripFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="!border-2 !border-slate-900 !bg-[#f4dc4d] !p-2.5 sm:!p-3 mt-1 flex items-center justify-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900 shadow-[3px_3px_0_#176b50] transition-all hover:!bg-[#fae255] active:translate-x-0.5 active:translate-y-0.5 disabled:opacity-50 disabled:cursor-wait"
+        className="!border-2 !border-slate-900 !bg-[#f4dc4d] !p-2.5 sm:!p-3 mt-1 flex items-center justify-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900 shadow-[3px_3px_0_#176b50] hover:!bg-[#fae255] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#176b50] cursor-pointer active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#176b50] transition-all duration-150 disabled:opacity-50 disabled:cursor-wait"
       >
         {loading ? (
           <>

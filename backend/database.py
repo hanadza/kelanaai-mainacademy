@@ -24,5 +24,25 @@ Base = declarative_base()
 
 # create all tables
 def init_db() -> None:
-    """Create all SQLAlchemy tables for the configured database."""
+    """Create all SQLAlchemy tables for the configured database and migrate columns if needed."""
+    from models.user import User  # noqa: F401
+    from models.trip import Trip  # noqa: F401
+    from sqlalchemy import text
+
     Base.metadata.create_all(bind=engine)
+
+    # Check and add user_id column to trips if it doesn't exist yet
+    with engine.connect() as conn:
+        conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name='trips' AND column_name='user_id'
+                ) THEN
+                    ALTER TABLE trips ADD COLUMN user_id BIGINT REFERENCES users(id) ON DELETE CASCADE;
+                END IF;
+            END $$;
+        """))
+        conn.commit()

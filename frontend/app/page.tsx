@@ -3,9 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TripForm from "@/components/TripForm";
 import { generateTrip } from "@/services/tripService";
+import { getCurrentUser, getToken, logout, User } from "@/services/authService";
 import type { TripRequest } from "@/types/trip";
 
 export default function Home() {
@@ -13,8 +14,20 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastPayload, setLastPayload] = useState<TripRequest | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+  }, []);
 
   async function handleGenerate(payload: TripRequest) {
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
     setLastPayload(payload);
     setLoading(true);
     setError("");
@@ -24,11 +37,12 @@ export default function Home() {
       router.push("/trips");
     } catch (requestError) {
       setLoading(false);
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to generate the trip."
-      );
+      const msg = requestError instanceof Error ? requestError.message : "Unable to generate the trip.";
+      if (msg.includes("401")) {
+        router.push("/login");
+      } else {
+        setError(msg);
+      }
     }
   }
 
@@ -45,9 +59,33 @@ export default function Home() {
         <div className="flex items-center justify-between gap-4">
           <p className="eyebrow !mb-0.5 !text-[11px]">AI travel planner</p>
           <div className="flex items-center gap-2.5">
+            {user ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/profile"
+                  className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#fffdf8] hover:bg-yellow-50 px-3 py-1 text-xs font-bold text-[#176b50] shadow-[3px_3px_0_#176b50] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#176b50] transition-all duration-150 no-underline"
+                >
+                  <span className="h-2 w-2 bg-emerald-500 border border-slate-900 shrink-0"></span>
+                  <span>Welcome back, {user.name} 👋</span>
+                </Link>
+                <button
+                  onClick={logout}
+                  className="inline-flex items-center gap-1 border-2 border-slate-900 bg-red-100 hover:bg-red-200 text-red-950 px-2.5 py-1 text-xs font-bold uppercase tracking-wider shadow-[3px_3px_0_#f15b45] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#f15b45] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#f15b45] transition-all duration-150 cursor-pointer"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#f4dc4d] px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-[3px_3px_0_#176b50] hover:bg-[#fae255] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#176b50] cursor-pointer active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#176b50] transition-all duration-150 no-underline"
+              >
+                <span>LOGIN / REGISTER</span>
+              </Link>
+            )}
             <Link
               href="/trips"
-              className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#f4dc4d] px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-[3px_3px_0_#176b50] transition-all hover:bg-[#fae255] active:translate-x-0.5 active:translate-y-0.5 no-underline"
+              className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#f4dc4d] px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-[3px_3px_0_#176b50] hover:bg-[#fae255] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#176b50] cursor-pointer active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#176b50] transition-all duration-150 no-underline"
             >
               <span>MY TRIPS</span>
               <span aria-hidden="true">→</span>

@@ -121,9 +121,12 @@ Session 6 adds a web interface so users can interact with KelanaAI through a bro
 Start the backend in one terminal:
 
 ```bash
-source .venv/bin/activate
+# Windows PowerShell:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+
 cd backend
-uvicorn main:app --reload
+python -m uvicorn main:app --reload --port 8000
 ```
 
 Start the Next.js frontend in a second terminal:
@@ -209,3 +212,30 @@ frontend/
 3. View the new trip at the top of the history list with flags, badges, and formatted budget.
 4. Click **View Details →** to inspect the full AI itinerary and travel breakdown.
 5. Click **Delete Trip** (either from list or detail page) to safely remove the record from PostgreSQL.
+
+## Session 8 - Authentication & Authorization
+
+### Features Added & Architecture
+Session 8 introduces multi-user authentication and data isolation. Each user registers/logins to receive a signed **JWT Access Token**, and all trip itineraries are strictly isolated by `user_id`.
+
+- **Database Relational Schema (`users` & `trips`)**:
+  - `users` Table: `id` (PK, BigInt), `name` (VarChar 100), `email` (VarChar 255, Unique), `password_hash` (VarChar 255), `created_at`.
+  - `trips` Table: Modified to include `user_id` (FK referencing `users.id`).
+- **Security & Password Hashing**:
+  - Passwords are securely hashed with **bcrypt** (never stored in plain text).
+  - JWT Tokens signed with **HS256** algorithm containing payload claims (`sub`, `email`, `name`, `exp`).
+- **Backend API Protection (FastAPI Dependency)**:
+  - `POST /api/v1/auth/register` : User registration with duplicate email validation.
+  - `POST /api/v1/auth/login` : Authenticates user credentials & returns JWT `access_token`.
+  - `GET /api/v1/auth/me` : **(Challenge)** Returns current user profile info & total trip count.
+  - Protected Trips Endpoints (`/api/v1/trips`) : Requires `Authorization: Bearer <token>`. Returns **HTTP 401 Unauthorized** if token is missing/invalid.
+  - Ownership Enforcement **(Homework)** : `GET`, `PUT`, `DELETE` on `/api/v1/trips/{id}` return **HTTP 403 Forbidden** if a user attempts to access or modify another user's trip.
+  - Automatic `user_id` Assignment : Backend extracts `user_id` directly from JWT claim during `POST /api/v1/trips` and ignores any frontend user input for security.
+
+- **Next.js Frontend Auth Flow**:
+  - **Auth Service (`frontend/services/authService.ts`)**: Manages JWT token storage in `localStorage` and supplies `Authorization` headers to `tripService.ts`.
+  - **Login Page (`/login`)**: Clean, retro-styled login interface with error notifications and validation.
+  - **Register Page (`/register`)**: Registration form with auto-login redirection to dashboard.
+  - **Profile Page (`/profile`)**: **(Core Challenge)** Displays user statistics (Name, Email, Total Trips Generated, Account ID).
+  - **Personalized Welcome Banner**: **(Bonus Challenge)** Displays `"Welcome back, [Name] 👋"` in the navbar with quick access to profile and logout.
+  - **Client-side Route Protection & Logout**: Unauthenticated users attempting to access `/trips` or `/profile` are automatically redirected to `/login`. Logout clears `localStorage` state immediately.

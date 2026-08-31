@@ -1,4 +1,5 @@
 import type { Trip, TripRequest } from "@/types/trip";
+import { getAuthHeaders } from "./authService";
 
 // Read from .env (frontend/.env.local -> NEXT_PUBLIC_API_URL). Update ONE
 // file when the backend URL changes - not every page (Session 7, Part 3).
@@ -7,11 +8,14 @@ const API_URL =
 
 /**
  * GET /api/v1/trips
- * Used by the /trips dashboard (Server Component) - reads from PostgreSQL,
+ * Used by the /trips dashboard - reads from PostgreSQL,
  * fast and free, no Bedrock call involved (Part 1: "two read paths").
  */
 export async function getTrips(): Promise<Trip[]> {
-  const res = await fetch(`${API_URL}/trips`, { cache: "no-store" });
+  const res = await fetch(`${API_URL}/trips`, {
+    cache: "no-store",
+    headers: getAuthHeaders(),
+  });
 
   if (!res.ok) {
     throw new Error(`Failed to load trips (HTTP ${res.status}).`);
@@ -26,7 +30,10 @@ export async function getTrips(): Promise<Trip[]> {
  * decide how to handle a missing trip (e.g. notFound()).
  */
 export async function getTrip(id: number): Promise<Trip | null> {
-  const res = await fetch(`${API_URL}/trips/${id}`, { cache: "no-store" });
+  const res = await fetch(`${API_URL}/trips/${id}`, {
+    cache: "no-store",
+    headers: getAuthHeaders(),
+  });
 
   if (res.status === 404) {
     return null;
@@ -41,14 +48,12 @@ export async function getTrip(id: number): Promise<Trip | null> {
 
 /**
  * POST /api/v1/trips
- * The only function that indirectly triggers Amazon Bedrock (via the
- * backend). Slow and costs money - only called when the user explicitly
- * generates a new itinerary (Part 1: "two read paths").
+ * Generates a new trip with Bedrock recommendation and associates user_id from JWT.
  */
 export async function generateTrip(data: TripRequest): Promise<Trip> {
   const res = await fetch(`${API_URL}/trips`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -70,6 +75,7 @@ export async function generateTrip(data: TripRequest): Promise<Trip> {
 export async function deleteTrip(id: number): Promise<{ message: string }> {
   const res = await fetch(`${API_URL}/trips/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(),
   });
 
   if (!res.ok) {
@@ -81,5 +87,6 @@ export async function deleteTrip(id: number): Promise<{ message: string }> {
 
   return res.json();
 }
+
 
 
