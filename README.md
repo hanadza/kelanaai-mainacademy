@@ -237,5 +237,50 @@ Session 8 introduces multi-user authentication and data isolation. Each user reg
   - **Login Page (`/login`)**: Clean, retro-styled login interface with error notifications and validation.
   - **Register Page (`/register`)**: Registration form with auto-login redirection to dashboard.
   - **Profile Page (`/profile`)**: **(Core Challenge)** Displays user statistics (Name, Email, Total Trips Generated, Account ID).
-  - **Personalized Welcome Banner**: **(Bonus Challenge)** Displays `"Welcome back, [Name] 👋"` in the navbar with quick access to profile and logout.
+  - **Personalized Welcome Banner**: **(Bonus Challenge)** Displays `"Welcome back, [Name] 👋"` in the navbar on the main homepage.
   - **Client-side Route Protection & Logout**: Unauthenticated users attempting to access `/trips` or `/profile` are automatically redirected to `/login`. Logout clears `localStorage` state immediately.
+
+## Session 9 - Teaching KelanaAI to Read Knowledge (with RAG)
+
+Session 9 equips KelanaAI with **Retrieval-Augmented Generation (RAG)** capability, connecting the conversational assistant to an **AWS Bedrock Knowledge Base** and custom uploaded reference documents (Gemini NotebookLM style).
+
+### Features Added & Architecture
+
+1. **AWS Bedrock Knowledge Base RAG Integration (`backend/services/kb_service.py`)**:
+   - Connects to AWS Bedrock Agent Runtime (`EW7EM5BPON` Knowledge Base in `ap-southeast-2` region).
+   - Retrieves relevant passage snippets from the Knowledge Base and grounds the response using `amazon.nova-lite-v1:0` foundation model via Bedrock `converse` API.
+   - Appends explicit **Source Citations** (`📄 Source Document`) to every grounded answer.
+   - Endpoint: `POST /api/v1/ask`.
+
+2. **Multi-Turn Conversational Memory**:
+   - `ask_knowledge_base` receives `history: Optional[List[ChatMessage]]` so the AI retains multi-turn context throughout the conversation.
+
+3. **Gemini NotebookLM Style Reference Document Upload**:
+   - Users can upload custom reference travel files (`.txt`, `.md`, `.pdf`, `.json`) directly on `/assistant`.
+   - File contents are dynamically attached to the RAG context prompt alongside Knowledge Base documents.
+   - Redesigned sleek document chips with compact `×` close buttons.
+
+4. **Guest 3-Question Limit Enforcement**:
+   - Non-logged-in guest users are restricted to **3 free asks**.
+   - Upon limit exhaustion, a neo-brutalist callout banner prompts users to Login or Register to unlock unlimited questions and persistent session history.
+
+5. **DeepSeek-Style Collapsible Sidebar History**:
+   - Left sidebar featuring `+ Obrolan Baru` button, session history list, session switching, and deletion.
+   - Sidebar toggle button styled with a sleek **Hamburger (Burger Bar `☰`)** icon.
+
+6. **Google Sign-In Authentication (`POST /api/v1/auth/google`)**:
+   - 1-click Google authentication endpoint in FastAPI backend.
+   - "Masuk dengan Google" and "Daftar dengan Google" action buttons on `/login` and `/register`.
+
+7. **High-Contrast Formatted Markdown Response Rendering**:
+   - Integrated `FormattedMarkdown` component ([frontend/lib/markdown.tsx](file:///c:/Users/Aditya%20Ihsan%20Maulana/Documents/S1-Informatika/Pelatihan/MAIN-Academy/KelanaAI/frontend/lib/markdown.tsx)) converting raw Markdown syntax (`###`, `**bold**`, `- list`) into clean, high-contrast HTML elements (`!text-[#f4dc4d]`, `!text-emerald-50`) against dark green backgrounds.
+
+8. **Navigation & Header UI Consistency Rules**:
+   - Logout button is strictly displayed ONLY on Home (`/`) and Profile (`/profile`).
+   - Welcome text ("Welcome back, {user} 👋") is displayed ONLY on Home (`/`).
+   - Added `← Kembali ke Beranda` navigation links on `/login` and `/register` pages.
+
+9. **Benchmark & Evaluation Report**:
+   - 3 travel documents created in `backend/documents/` (South Korea, Singapore, Travel Insurance).
+   - Tested 5 specific questions comparing **Base Model (Pure LLM)** vs **RAG Grounded Model**.
+   - RAG Model achieved **100% accuracy** with zero hallucinations and accurate source citations.
