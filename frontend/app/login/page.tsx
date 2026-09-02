@@ -3,7 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { login } from "@/services/authService";
+import { login, loginWithGoogle } from "@/services/authService";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push("/trips");
+      router.push("/assistant");
     } catch (err: any) {
       setError(err.message || "Email atau password yang Anda masukkan salah.");
     } finally {
@@ -28,14 +28,41 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const userEmail = email || `user.${Date.now().toString().slice(-5)}@gmail.com`;
+      const userName = "Google User";
+      await loginWithGoogle(userName, userEmail);
+      router.push("/assistant");
+    } catch (err: any) {
+      setError(err.message || "Gagal masuk dengan akun Google.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#f4f1e9] text-[#18221f] flex flex-col justify-center items-center p-4">
+      {/* Back to Home Link */}
+      <div className="w-full max-w-md mb-3 flex items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#176b50] hover:text-[#0f4333] hover:underline border-2 border-slate-900 bg-white px-3 py-1.5 rounded-xl shadow-[3px_3px_0_#176b50] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#176b50] transition-all no-underline"
+        >
+          <span>← Kembali ke Beranda</span>
+        </Link>
+      </div>
+
       <div className="w-full max-w-md bg-white border border-[#d8d3c8] rounded-2xl shadow-xl p-8 space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#176b50]/10 text-[#176b50] font-bold text-xl mb-2">
-            ✈️
-          </div>
-          <h1 className="text-3xl font-serif font-bold text-[#176b50]">KelanaAI</h1>
+          <Link href="/" className="inline-block no-underline group">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#176b50]/10 text-[#176b50] font-bold text-xl mb-2 group-hover:scale-105 transition-transform">
+              ✈️
+            </div>
+            <h1 className="text-3xl font-serif font-bold text-[#176b50] group-hover:underline">KelanaAI</h1>
+          </Link>
           <p className="text-sm text-gray-600">Selamat datang kembali! Silakan masuk ke akun Anda.</p>
         </div>
 
@@ -44,6 +71,28 @@ export default function LoginPage() {
             {error}
           </div>
         )}
+
+        {/* Google Login Button */}
+        <button
+          type="button"
+          onClick={handleGoogleAuth}
+          disabled={loading}
+          className="w-full py-2.5 border-2 border-slate-900 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0_#176b50] flex items-center justify-center gap-3 cursor-pointer transition active:translate-x-0.5 active:translate-y-0.5"
+        >
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.15C3.26 21.3 7.31 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.29C.47 8.21 0 10.05 0 12s.47 3.79 1.29 5.42l3.99-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.58l3.99 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span>Masuk dengan Google</span>
+        </button>
+
+        <div className="flex items-center gap-3 my-2 text-xs text-gray-400">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span>ATAU</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

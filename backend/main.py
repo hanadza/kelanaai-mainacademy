@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from typing import Optional, List, Dict
 import os
 from sqlalchemy.orm import Session
 from services.trip_service import (
@@ -11,6 +12,7 @@ from services.trip_service import (
     get_travel_season,
 )
 from services.bedrock_service import get_ai_recommendation
+from services.kb_service import ask_knowledge_base
 from services.auth_service import (
     hash_password,
     verify_password,
@@ -36,6 +38,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleLoginRequest(BaseModel):
+    email: str
+    name: str
+
+
 class TripRequest(BaseModel):
     destination:    str
     days:           int
@@ -45,6 +52,22 @@ class TripRequest(BaseModel):
 
 class TripUpdate(BaseModel):
     budget: float
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class UserDocument(BaseModel):
+    name: str
+    content: str
+
+
+class QuestionRequest(BaseModel):
+    question: str
+    history: Optional[List[ChatMessage]] = None
+    user_documents: Optional[List[UserDocument]] = None
 
 # FastAPI validates the JSON body against this model
 # If a field is missing or wrong type, it returns 422 automatically
@@ -139,6 +162,40 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         )
 
     # Generate JWT access token
+    access_token = create_access_token(
+        data={"sub": str(user.id), "email": user.email, "name": user.name}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+        }
+    }
+
+
+@app.post("/api/v1/auth/google")
+def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
+    """
+    Google Sign-In/Sign-Up endpoint.
+    Automatically creates a user if not existing and returns a JWT access token.
+    """
+    user = db.query(User).filter(User.email == request.email).first()
+    if not user:
+        # Create user with secure random hash for password
+        random_pwd = hash_password(os.urandom(16).hex())
+        user = User(
+            name=request.name,
+            email=request.email,
+            password_hash=random_pwd,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email, "name": user.name}
     )
@@ -312,3 +369,25 @@ def delete_trip(
     return {
         "message": f"Trip with id {trip_id} successfully deleted"
     }
+
+
+# Session 9 - RAG Knowledge Base Endpoint
+@app.post("/api/v1/ask")
+def ask_endpoint(request: QuestionRequest):
+    """
+    Knowledge Base RAG endpoint.
+    Sends the user question, optional conversation history, and optional user reference documents to Bedrock Knowledge Base and returns a grounded answer.
+    """
+    try:
+        history_list = [msg.model_dump() for msg in request.history] if request.history else None
+        user_docs_list = [doc.model_dump() for doc in request.user_documents] if request.user_documents else None
+        answer = ask_knowledge_base(request.question, history=history_list, user_documents=user_docs_list)
+        return {
+            "question": request.question,
+            "answer": answer
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to query Knowledge Base: {str(e)}"
+        )

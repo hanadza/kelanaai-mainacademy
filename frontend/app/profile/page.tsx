@@ -52,13 +52,9 @@ export default function ProfilePage() {
             ← Kembali ke Trips
           </Link>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#fffdf8] px-3 py-1 text-xs font-bold text-[#176b50] shadow-[3px_3px_0_#176b50]">
-              <span className="h-2 w-2 bg-emerald-500 border border-slate-900 shrink-0"></span>
-              <span>Welcome back, {profile?.name} 👋</span>
-            </span>
             <button
               onClick={logout}
-              className="inline-flex items-center gap-1 border-2 border-slate-900 bg-red-100 hover:bg-red-200 text-red-950 px-2.5 py-1 text-xs font-bold uppercase tracking-wider shadow-[3px_3px_0_#f15b45] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#f15b45] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#f15b45] transition-all duration-150 cursor-pointer"
+              className="inline-flex items-center gap-1 border-2 border-slate-900 bg-red-100 hover:bg-red-200 text-red-950 px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-[3px_3px_0_#f15b45] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#f15b45] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#f15b45] transition-all duration-150 cursor-pointer"
             >
               Logout
             </button>

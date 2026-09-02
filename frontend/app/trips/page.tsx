@@ -67,20 +67,13 @@ export default function TripsPage() {
           {user && (
             <Link
               href="/profile"
-              className="inline-flex items-center gap-2 border-2 border-slate-900 bg-[#fffdf8] hover:bg-yellow-50 px-3 py-2 text-xs font-bold text-[#176b50] shadow-[3px_3px_0_#176b50] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#176b50] transition-all duration-150 no-underline"
+              className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#fffdf8] hover:bg-yellow-50 px-3 py-2 text-xs font-bold text-[#176b50] shadow-[3px_3px_0_#176b50] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#176b50] transition-all duration-150 no-underline"
               title="Lihat Profil"
             >
-              <span className="h-2.5 w-2.5 bg-emerald-500 border border-slate-900 shrink-0"></span>
-              <span>Welcome back, {user.name} 👋</span>
+              <span className="h-2 w-2 bg-emerald-500 border border-slate-900 shrink-0"></span>
+              <span>PROFIL ({user.name})</span>
             </Link>
           )}
-
-          <button
-            onClick={logout}
-            className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-red-100 hover:bg-red-200 text-red-950 px-3 py-2 text-xs font-bold uppercase tracking-wider shadow-[3px_3px_0_#f15b45] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#f15b45] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#f15b45] transition-all duration-150 cursor-pointer"
-          >
-            🚪 Logout
-          </button>
 
           <Link
             href="/"

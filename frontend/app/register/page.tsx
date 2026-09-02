@@ -3,7 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { register, login } from "@/services/authService";
+import { register, login, loginWithGoogle } from "@/services/authService";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function RegisterPage() {
       await register(name, email, password);
       // 2. Auto-login after successful registration
       await login(email, password);
-      router.push("/trips");
+      router.push("/assistant");
     } catch (err: any) {
       setError(err.message || "Gagal melakukan registrasi.");
     } finally {
@@ -32,15 +32,42 @@ export default function RegisterPage() {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const userEmail = email || `user.${Date.now().toString().slice(-5)}@gmail.com`;
+      const userName = name || "Google Traveler";
+      await loginWithGoogle(userName, userEmail);
+      router.push("/assistant");
+    } catch (err: any) {
+      setError(err.message || "Gagal mendaftar dengan akun Google.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#f4f1e9] text-[#18221f] flex flex-col justify-center items-center p-4">
+      {/* Back to Home Link */}
+      <div className="w-full max-w-md mb-3 flex items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#176b50] hover:text-[#0f4333] hover:underline border-2 border-slate-900 bg-white px-3 py-1.5 rounded-xl shadow-[3px_3px_0_#176b50] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#176b50] transition-all no-underline"
+        >
+          <span>← Kembali ke Beranda</span>
+        </Link>
+      </div>
+
       <div className="w-full max-w-md bg-white border border-[#d8d3c8] rounded-2xl shadow-xl p-8 space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#176b50]/10 text-[#176b50] font-bold text-xl mb-2">
-            ✨
-          </div>
-          <h1 className="text-3xl font-serif font-bold text-[#176b50]">Daftar KelanaAI</h1>
-          <p className="text-sm text-gray-600">Buat akun untuk merencanakan perjalanan AI Anda.</p>
+          <Link href="/" className="inline-block no-underline group">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#176b50]/10 text-[#176b50] font-bold text-xl mb-2 group-hover:scale-105 transition-transform">
+              ✨
+            </div>
+            <h1 className="text-3xl font-serif font-bold text-[#176b50] group-hover:underline">Daftar KelanaAI</h1>
+          </Link>
+          <p className="text-sm text-gray-600">Buat akun untuk merencanakan perjalanan & bertanya ke AI Assistant.</p>
         </div>
 
         {error && (
@@ -48,6 +75,28 @@ export default function RegisterPage() {
             {error}
           </div>
         )}
+
+        {/* Google Register Button */}
+        <button
+          type="button"
+          onClick={handleGoogleAuth}
+          disabled={loading}
+          className="w-full py-2.5 border-2 border-slate-900 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0_#176b50] flex items-center justify-center gap-3 cursor-pointer transition active:translate-x-0.5 active:translate-y-0.5"
+        >
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.15C3.26 21.3 7.31 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.29C.47 8.21 0 10.05 0 12s.47 3.79 1.29 5.42l3.99-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.58l3.99 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span>Daftar dengan Google</span>
+        </button>
+
+        <div className="flex items-center gap-3 my-2 text-xs text-gray-400">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span>ATAU</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -107,66 +156,6 @@ export default function RegisterPage() {
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
-
-            {/* Indikator Kekuatan Password & Rekomendasi */}
-            {password.length > 0 && (() => {
-              const hasLower = /[a-z]/.test(password);
-              const hasUpper = /[A-Z]/.test(password);
-              const hasNumber = /[0-9]/.test(password);
-              const hasSymbol = /[^A-Za-z0-9]/.test(password);
-              const score = [hasLower, hasUpper, hasNumber, hasSymbol].filter(Boolean).length;
-
-              let strengthLabel = "Lemah";
-              let strengthColor = "bg-red-500";
-              let strengthTextColor = "text-red-600";
-              let strengthWidth = "w-1/3";
-
-              if (score >= 4 && password.length >= 8) {
-                strengthLabel = "Kuat";
-                strengthColor = "bg-emerald-500";
-                strengthTextColor = "text-emerald-600";
-                strengthWidth = "w-full";
-              } else if (score >= 2) {
-                strengthLabel = "Sedang";
-                strengthColor = "bg-amber-500";
-                strengthTextColor = "text-amber-600";
-                strengthWidth = "w-2/3";
-              }
-
-              return (
-                <div className="mt-2.5 space-y-2 bg-slate-50/90 p-3 rounded-xl border border-gray-200">
-                  <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-gray-500">Kekuatan Password:</span>
-                    <span className={`font-bold ${strengthTextColor}`}>{strengthLabel}</span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
-                    <div className={`h-full ${strengthColor} ${strengthWidth} transition-all duration-300 rounded-full`} />
-                  </div>
-
-                  {/* Recommendations Checklist */}
-                  <div className="grid grid-cols-2 gap-1.5 pt-1 text-[11px]">
-                    <div className={`flex items-center gap-1.5 ${hasLower ? "text-emerald-700 font-semibold" : "text-gray-400"}`}>
-                      <span>{hasLower ? "✓" : "•"}</span>
-                      <span>Huruf kecil (a-z)</span>
-                    </div>
-                    <div className={`flex items-center gap-1.5 ${hasUpper ? "text-emerald-700 font-semibold" : "text-gray-400"}`}>
-                      <span>{hasUpper ? "✓" : "•"}</span>
-                      <span>Huruf besar (A-Z)</span>
-                    </div>
-                    <div className={`flex items-center gap-1.5 ${hasNumber ? "text-emerald-700 font-semibold" : "text-gray-400"}`}>
-                      <span>{hasNumber ? "✓" : "•"}</span>
-                      <span>Angka (0-9)</span>
-                    </div>
-                    <div className={`flex items-center gap-1.5 ${hasSymbol ? "text-emerald-700 font-semibold" : "text-gray-400"}`}>
-                      <span>{hasSymbol ? "✓" : "•"}</span>
-                      <span>Simbol (@#$...)</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
           </div>
 
           <button

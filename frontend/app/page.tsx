@@ -84,6 +84,13 @@ export default function Home() {
               </Link>
             )}
             <Link
+              href="/assistant"
+              className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#176b50] text-white px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-[3px_3px_0_#0f4333] hover:bg-[#0f4333] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#0f4333] cursor-pointer active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#0f4333] transition-all duration-150 no-underline"
+            >
+              <span>ASSISTANT</span>
+              <span aria-hidden="true">🤖</span>
+            </Link>
+            <Link
               href="/trips"
               className="inline-flex items-center gap-1.5 border-2 border-slate-900 bg-[#f4dc4d] px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-[3px_3px_0_#176b50] hover:bg-[#fae255] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#176b50] cursor-pointer active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#176b50] transition-all duration-150 no-underline"
             >
