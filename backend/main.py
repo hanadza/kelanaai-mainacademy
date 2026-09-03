@@ -18,11 +18,21 @@ from services.auth_service import (
     verify_password,
     create_access_token,
     get_current_user,
+    get_optional_current_user,
     get_db,
+)
+from services.conversation_service import (
+    create_conversation,
+    get_user_conversations,
+    get_conversation_by_id,
+    add_message,
+    delete_conversation,
+    update_conversation_title,
 )
 from database import init_db
 from models.trip import Trip
 from models.user import User
+from models.conversation import Conversation, Message
 
 load_dotenv()
 
@@ -64,8 +74,21 @@ class UserDocument(BaseModel):
     content: str
 
 
+class ConversationCreateRequest(BaseModel):
+    title: Optional[str] = "Obrolan Baru"
+
+
+class ConversationTitleUpdate(BaseModel):
+    title: str
+
+
+class MessageCreateRequest(BaseModel):
+    content: str
+
+
 class QuestionRequest(BaseModel):
     question: str
+    conversation_id: Optional[int] = None
     history: Optional[List[ChatMessage]] = None
     user_documents: Optional[List[UserDocument]] = None
 
@@ -77,11 +100,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    # Reads the Next.js origin from backend/.env (FRONTEND_URL). In
-    # production this is the only line you change - e.g. to your Vercel URL.
     allow_origins=[
         os.getenv("FRONTEND_URL", "http://localhost:3000"),
+        "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -371,23 +395,260 @@ def delete_trip(
     }
 
 
-# Session 9 - RAG Knowledge Base Endpoint
-@app.post("/api/v1/ask")
-def ask_endpoint(request: QuestionRequest):
+# Session 10 - Conversation History & Memory Endpoints
+
+@app.get("/api/v1/conversations")
+def list_conversations(
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all previous conversations for authenticated user or guest (Session 10 Part 3)."""
+    user_id = current_user.id if current_user else None
+    convs = get_user_conversations(db, user_id=user_id)
+    return [
+        {
+            "id": c.id,
+            "conversation_id": c.id,
+            "title": c.title,
+            "user_id": c.user_id,
+            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else "",
+            "messages_count": len(c.messages),
+        }
+        for c in convs
+    ]
+
+
+@app.post("/api/v1/conversations", status_code=201)
+def create_new_conversation(
+    request: Optional[ConversationCreateRequest] = None,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new conversation row and return its identifier (Session 10 Part 3)."""
+    user_id = current_user.id if current_user else None
+    title = request.title if request and request.title else "Obrolan Baru"
+    conv = create_conversation(db, title=title, user_id=user_id)
+    return {
+        "conversation_id": conv.id,
+        "id": str(conv.id),
+        "title": conv.title,
+        "user_id": conv.user_id,
+        "created_at": conv.created_at,
+        "messages": [],
+    }
+
+
+@app.get("/api/v1/conversations/{conversation_id}")
+def get_conversation_detail(
+    conversation_id: int,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a specific conversation and all its messages."""
+    user_id = current_user.id if current_user else None
+    conv = get_conversation_by_id(db, conversation_id=conversation_id, user_id=user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail=f"Conversation {conversation_id} not found")
+
+    return {
+        "conversation_id": conv.id,
+        "id": str(conv.id),
+        "title": conv.title,
+        "user_id": conv.user_id,
+        "created_at": conv.created_at,
+        "messages": [
+            {
+                "id": str(m.id),
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at,
+                "timestamp": m.created_at.strftime("%H:%M") if m.created_at else "",
+            }
+            for m in conv.messages
+        ],
+    }
+
+
+@app.delete("/api/v1/conversations/{conversation_id}")
+def remove_conversation(
+    conversation_id: int,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a conversation thread."""
+    user_id = current_user.id if current_user else None
+    success = delete_conversation(db, conversation_id=conversation_id, user_id=user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Conversation {conversation_id} not found")
+    return {"message": f"Conversation {conversation_id} deleted successfully"}
+
+
+@app.patch("/api/v1/conversations/{conversation_id}")
+@app.patch("/api/v1/conversations/{conversation_id}/title")
+def rename_conversation(
+    conversation_id: int,
+    request: ConversationTitleUpdate,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update title of a conversation (Bonus Challenge: Rename Conversations)."""
+    user_id = current_user.id if current_user else None
+    conv = update_conversation_title(db, conversation_id=conversation_id, title=request.title, user_id=user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail=f"Conversation {conversation_id} not found")
+    return {"conversation_id": conv.id, "id": str(conv.id), "title": conv.title}
+
+
+# Session 10 Part 4 — Send Message API Endpoint (Orchestration Flow)
+@app.post("/api/v1/conversations/{conversation_id}/messages")
+def send_message_endpoint(
+    conversation_id: int,
+    request: MessageCreateRequest,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
     """
-    Knowledge Base RAG endpoint.
-    Sends the user question, optional conversation history, and optional user reference documents to Bedrock Knowledge Base and returns a grounded answer.
+    Session 10 Part 4 & Part 5 - Send Message API with Prompt Builder.
+    7-Step Orchestration:
+    01. Receive User Message
+    02. Save Message (in DB)
+    03. Load Previous Messages (from DB)
+    04. Build Prompt (Context-Aware Prompt Builder)
+    05. Query Amazon Bedrock
+    06. Save AI Response (in DB)
+    07. Return Response
     """
     try:
-        history_list = [msg.model_dump() for msg in request.history] if request.history else None
-        user_docs_list = [doc.model_dump() for doc in request.user_documents] if request.user_documents else None
-        answer = ask_knowledge_base(request.question, history=history_list, user_documents=user_docs_list)
+        user_id = current_user.id if current_user else None
+        conversation = get_conversation_by_id(db, conversation_id=conversation_id, user_id=user_id)
+
+        if not conversation:
+            default_title = request.content[:30] + ("..." if len(request.content) > 30 else "")
+            conversation = create_conversation(db, title=default_title, user_id=user_id)
+
+        # Step 01 & 02: Save User Message
+        add_message(db, conversation_id=conversation.id, role="user", content=request.content)
+
+        # Step 03 & 04: Load Previous Messages & Build Context-Aware Prompt History
+        # (Session 10 Part 8: Trim Context Window to last N turns for efficiency & token limit safety)
+        MAX_HISTORY_TURNS = 20
+        db.refresh(conversation)
+        history_payload = [
+            {"role": m.role, "content": m.content}
+            for m in conversation.messages
+        ][-MAX_HISTORY_TURNS:]
+
+        # Step 05: Call Amazon Bedrock with Context-Aware Prompt
+        answer = ask_knowledge_base(
+            question=request.content,
+            history=history_payload,
+        )
+
+        # Step 06: Save AI Response in DB
+        add_message(db, conversation_id=conversation.id, role="assistant", content=answer)
+
+        # Auto update session title if default "Obrolan Baru"
+        if conversation.title == "Obrolan Baru":
+            new_title = request.content[:30] + ("..." if len(request.content) > 30 else "")
+            update_conversation_title(db, conversation_id=conversation.id, title=new_title, user_id=user_id)
+
+        # Step 07: Return Response
         return {
+            "conversation_id": conversation.id,
+            "question": request.content,
+            "answer": answer,
+            "history": [
+                {
+                    "id": m.id,
+                    "role": m.role,
+                    "content": m.content,
+                    "created_at": m.created_at,
+                    "timestamp": m.created_at.strftime("%H:%M") if m.created_at else "",
+                }
+                for m in conversation.messages
+            ],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process message: {str(e)}"
+        )
+
+
+# Session 9 & 10 - RAG Knowledge Base Endpoint with Persistent Memory
+@app.post("/api/v1/ask")
+def ask_endpoint(
+    request: QuestionRequest,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Knowledge Base RAG endpoint with persistent conversation memory.
+    Saves user questions and AI responses to PostgreSQL and feeds complete
+    conversation history to Bedrock so the AI remembers context across turns.
+    """
+    try:
+        user_id = current_user.id if current_user else None
+        conversation = None
+
+        # 1. Retrieve or create conversation session in DB
+        if request.conversation_id:
+            conversation = get_conversation_by_id(db, conversation_id=request.conversation_id, user_id=user_id)
+
+        if not conversation:
+            default_title = request.question[:30] + ("..." if len(request.question) > 30 else "")
+            conversation = create_conversation(db, title=default_title, user_id=user_id)
+
+        # 2. Persist the new user question message in DB
+        add_message(db, conversation_id=conversation.id, role="user", content=request.question)
+
+        # 3. Retrieve messages to build multi-turn memory (trimmed to last N turns per Part 8)
+        MAX_HISTORY_TURNS = 20
+        db.refresh(conversation)
+
+        history_payload = [
+            {"role": m.role, "content": m.content}
+            for m in conversation.messages
+        ][-MAX_HISTORY_TURNS:]
+
+        user_docs_list = [doc.model_dump() for doc in request.user_documents] if request.user_documents else None
+
+        # 4. Ask Knowledge Base RAG with complete conversation memory history
+        answer = ask_knowledge_base(
+            question=request.question,
+            history=history_payload,
+            user_documents=user_docs_list,
+        )
+
+        # 5. Persist the AI assistant response message in DB
+        add_message(db, conversation_id=conversation.id, role="assistant", content=answer)
+
+        # 6. Auto-update title if it's currently default "Obrolan Baru"
+        if conversation.title == "Obrolan Baru":
+            new_title = request.question[:30] + ("..." if len(request.question) > 30 else "")
+            update_conversation_title(db, conversation_id=conversation.id, title=new_title, user_id=user_id)
+
+        return {
+            "conversation_id": str(conversation.id),
             "question": request.question,
-            "answer": answer
+            "answer": answer,
+            "history": [
+                {
+                    "id": str(m.id),
+                    "role": m.role,
+                    "content": m.content,
+                    "created_at": m.created_at,
+                    "timestamp": m.created_at.strftime("%H:%M") if m.created_at else "",
+                }
+                for m in conversation.messages
+            ],
         }
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to query Knowledge Base: {str(e)}"
-        )
+        )

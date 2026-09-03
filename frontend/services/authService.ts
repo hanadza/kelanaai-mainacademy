@@ -18,60 +18,90 @@ export interface AuthResponse {
   user: User;
 }
 
-export async function getProfile(): Promise<UserProfile> {
-  const res = await fetch(`${API_URL}/auth/me`, {
-    headers: getAuthHeaders(),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.detail || "Gagal mengambil data profil.");
+function parseErrorMessage(data: any, fallback: string): string {
+  if (!data || !data.detail) return fallback;
+  if (typeof data.detail === "string") return data.detail;
+  if (Array.isArray(data.detail)) {
+    return data.detail.map((d: any) => d.msg || d.detail || JSON.stringify(d)).join(", ");
   }
+  return fallback;
+}
 
-  return data;
+export async function getProfile(): Promise<UserProfile> {
+  try {
+    const res = await fetch(`${API_URL}/auth/me`, {
+      headers: getAuthHeaders(),
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(parseErrorMessage(data, "Gagal mengambil data profil."));
+    }
+
+    return data;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("fetch")) {
+      throw new Error("Gagal terhubung ke server backend. Pastikan server FastAPI (port 8000) sedang berjalan.");
+    }
+    throw err;
+  }
 }
 
 export async function loginWithGoogle(
   name: string,
   email: string
 ): Promise<AuthResponse> {
-  const res = await fetch(`${API_URL}/auth/google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email }),
-  });
+  try {
+    const res = await fetch(`${API_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email }),
+    });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.detail || "Gagal masuk dengan Google.");
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(parseErrorMessage(data, "Gagal masuk dengan Google."));
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+
+    return data;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("fetch")) {
+      throw new Error("Gagal terhubung ke server backend. Pastikan server FastAPI (port 8000) sedang berjalan.");
+    }
+    throw err;
   }
-
-  if (typeof window !== "undefined") {
-    localStorage.setItem("token", data.access_token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-  }
-
-  return data;
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  try {
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.detail || "Login gagal. Cek kembali email dan password.");
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(parseErrorMessage(data, "Email atau password yang Anda masukkan salah."));
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+
+    return data;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("fetch")) {
+      throw new Error("Gagal terhubung ke server backend (http://localhost:8000). Pastikan server FastAPI sedang berjalan.");
+    }
+    throw err;
   }
-
-  if (typeof window !== "undefined") {
-    localStorage.setItem("token", data.access_token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-  }
-
-  return data;
 }
 
 export async function register(
@@ -79,18 +109,25 @@ export async function register(
   email: string,
   password: string
 ): Promise<{ message: string; user: User }> {
-  const res = await fetch(`${API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password }),
-  });
+  try {
+    const res = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.detail || "Registrasi gagal.");
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(parseErrorMessage(data, "Registrasi gagal. Email mungkin sudah terdaftar."));
+    }
+
+    return data;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("fetch")) {
+      throw new Error("Gagal terhubung ke server backend (http://localhost:8000). Pastikan server FastAPI sedang berjalan.");
+    }
+    throw err;
   }
-
-  return data;
 }
 
 export function logout(): void {

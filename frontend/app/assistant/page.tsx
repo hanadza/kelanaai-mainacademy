@@ -4,10 +4,15 @@ import Link from "next/link";
 import { useState, useEffect, useRef, ChangeEvent } from "react";
 import {
   askKnowledgeBase,
+  getConversations,
+  createConversation,
+  getConversationDetail,
+  deleteConversationApi,
+  renameConversationApi,
   ChatMessage,
   UserDocument,
 } from "@/services/assistantService";
-import { getCurrentUser, logout, User } from "@/services/authService";
+import { getCurrentUser, User } from "@/services/authService";
 import { FormattedMarkdown } from "@/lib/markdown";
 
 interface ExtendedChatMessage extends ChatMessage {
@@ -37,17 +42,71 @@ export default function AssistantPage() {
   const [isClient, setIsClient] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Rename Conversation State (Bonus Challenge)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState<string>("");
+
   // Active documents attached to current session (NotebookLM style)
   const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Rename session helper (Bonus Challenge)
+  async function handleRenameSession(sessionId: string, newTitle: string) {
+    if (!newTitle.trim()) {
+      setEditingSessionId(null);
+      return;
+    }
+    try {
+      await renameConversationApi(sessionId, newTitle.trim());
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, title: newTitle.trim() } : s))
+      );
+    } catch (err) {
+      console.warn("Failed to rename session", err);
+    } finally {
+      setEditingSessionId(null);
+    }
+  }
+
   // Active session messages
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
 
-  // Initialize client state, current user, and localStorage sessions
+  // Load detailed messages for a given session ID from backend
+  async function loadConversationMessages(sessId: string) {
+    try {
+      const detail = await getConversationDetail(sessId);
+      const detailMessages: ExtendedChatMessage[] = (detail.messages || []).map((m) => ({
+        id: m.id || Date.now().toString(),
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        source: m.role === "assistant" ? "AWS Knowledge Base Verified" : undefined,
+      }));
+
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessId ? { ...s, title: detail.title, messages: detailMessages } : s
+        )
+      );
+    } catch (e) {
+      console.warn("Failed to load conversation messages from server", e);
+    }
+  }
+
+  // Handle switching active conversation session
+  function handleSelectSession(sessId: string) {
+    setActiveSessionId(sessId);
+    const targetSession = sessions.find((s) => s.id === sessId);
+    if (targetSession) {
+      setUserDocuments(targetSession.userDocuments || []);
+    }
+    loadConversationMessages(sessId);
+  }
+
+  // Initialize client state, current user, and PostgreSQL sessions (with localStorage fallback)
   useEffect(() => {
     setIsClient(true);
     const currentUser = getCurrentUser();
@@ -59,42 +118,79 @@ export default function AssistantPage() {
       setGuestAsksCount(parseInt(savedGuestCount, 10) || 0);
     }
 
-    // Load sessions
-    const storageKey = currentUser
-      ? `kelana_assistant_sessions_user_${currentUser.id}`
-      : "kelana_assistant_sessions_guest";
-
-    const savedSessionsStr = localStorage.getItem(storageKey);
-    let loadedSessions: ChatSession[] = [];
-    if (savedSessionsStr) {
+    async function initSessions() {
       try {
-        loadedSessions = JSON.parse(savedSessionsStr);
-      } catch {
-        loadedSessions = [];
+        const backendConvs = await getConversations();
+        if (backendConvs && backendConvs.length > 0) {
+          const loadedSessions: ChatSession[] = backendConvs.map((c) => ({
+            id: c.id,
+            title: c.title,
+            updatedAt: c.updated_at || "Baru saja",
+            messages: [],
+            userDocuments: [],
+          }));
+
+          setSessions(loadedSessions);
+          setActiveSessionId(loadedSessions[0].id);
+          loadConversationMessages(loadedSessions[0].id);
+          return;
+        }
+      } catch (e) {
+        console.warn("Backend conversation API unavailable, using local session state.", e);
       }
+
+      // Local storage fallback if offline or guest mode
+      const storageKey = currentUser
+        ? `kelana_assistant_sessions_user_${currentUser.id}`
+        : "kelana_assistant_sessions_guest";
+
+      const savedSessionsStr = localStorage.getItem(storageKey);
+      let loadedSessions: ChatSession[] = [];
+      if (savedSessionsStr) {
+        try {
+          loadedSessions = JSON.parse(savedSessionsStr);
+        } catch {
+          loadedSessions = [];
+        }
+      }
+
+      if (loadedSessions.length === 0) {
+        try {
+          const created = await createConversation("Obrolan Baru");
+          loadedSessions = [
+            {
+              id: created.id,
+              title: created.title,
+              updatedAt: "Baru saja",
+              messages: [],
+              userDocuments: [],
+            },
+          ];
+        } catch {
+          loadedSessions = [
+            {
+              id: Date.now().toString(),
+              title: "Obrolan Baru",
+              updatedAt: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              messages: [],
+              userDocuments: [],
+            },
+          ];
+        }
+      }
+
+      setSessions(loadedSessions);
+      setActiveSessionId(loadedSessions[0].id);
+      setUserDocuments(loadedSessions[0].userDocuments || []);
     }
 
-    if (loadedSessions.length === 0) {
-      // Create initial new chat session
-      const newSess: ChatSession = {
-        id: Date.now().toString(),
-        title: "Obrolan Baru",
-        updatedAt: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        messages: [],
-        userDocuments: [],
-      };
-      loadedSessions = [newSess];
-    }
-
-    setSessions(loadedSessions);
-    setActiveSessionId(loadedSessions[0].id);
-    setUserDocuments(loadedSessions[0].userDocuments || []);
+    initSessions();
   }, []);
 
-  // Save sessions to localStorage whenever sessions state changes
+  // Save sessions to localStorage as client cache
   useEffect(() => {
     if (!isClient) return;
     const storageKey = user
@@ -110,10 +206,13 @@ export default function AssistantPage() {
     }
   }, [activeSessionId]);
 
-  // Scroll to bottom when messages update
+  // Auto-scroll to latest message (Skenario 1: Buka/ganti percakapan & Skenario 2: Pesan baru dikirim/diketik)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    const timer = setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [messages, loading, activeSessionId]);
 
   const isGuestLimitReached = !user && guestAsksCount >= GUEST_LIMIT;
 
@@ -124,10 +223,20 @@ export default function AssistantPage() {
   ];
 
   // Helper: Create a new chat session (DeepSeek style "+ Obrolan Baru")
-  function handleNewChat() {
+  async function handleNewChat() {
+    let newSessId = Date.now().toString();
+    let newTitle = "Obrolan Baru";
+    try {
+      const created = await createConversation("Obrolan Baru");
+      newSessId = created.id;
+      newTitle = created.title;
+    } catch (e) {
+      console.warn("Using local session ID for new chat", e);
+    }
+
     const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: "Obrolan Baru",
+      id: newSessId,
+      title: newTitle,
       updatedAt: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -142,29 +251,23 @@ export default function AssistantPage() {
     setError("");
   }
 
-  // Helper: Delete a chat session from history
-  function handleDeleteSession(sessionIdToDelete: string, e: React.MouseEvent) {
+  // Helper: Delete a chat session from database and local state
+  async function handleDeleteSession(sessionIdToDelete: string, e: React.MouseEvent) {
     e.stopPropagation();
+
+    try {
+      await deleteConversationApi(sessionIdToDelete);
+    } catch (err) {
+      console.warn("Failed to delete session on server", err);
+    }
+
     const filtered = sessions.filter((s) => s.id !== sessionIdToDelete);
     if (filtered.length === 0) {
-      const freshSession: ChatSession = {
-        id: Date.now().toString(),
-        title: "Obrolan Baru",
-        updatedAt: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        messages: [],
-        userDocuments: [],
-      };
-      setSessions([freshSession]);
-      setActiveSessionId(freshSession.id);
-      setUserDocuments([]);
+      handleNewChat();
     } else {
       setSessions(filtered);
       if (activeSessionId === sessionIdToDelete) {
-        setActiveSessionId(filtered[0].id);
-        setUserDocuments(filtered[0].userDocuments || []);
+        handleSelectSession(filtered[0].id);
       }
     }
   }
@@ -186,7 +289,6 @@ export default function AssistantPage() {
 
           setUserDocuments((prev) => {
             const updated = [...prev, newDoc];
-            // Update active session's documents
             setSessions((prevSessions) =>
               prevSessions.map((s) =>
                 s.id === activeSessionId ? { ...s, userDocuments: updated } : s
@@ -216,7 +318,7 @@ export default function AssistantPage() {
 
   async function handleSendQuestion(textToSend?: string) {
     const query = (textToSend || question).trim();
-    if (!query || loading || !activeSessionId) return;
+    if (!query || loading) return;
 
     if (isGuestLimitReached) {
       setError(
@@ -272,43 +374,69 @@ export default function AssistantPage() {
     }
 
     try {
-      // Build history payload for backend multi-turn RAG context
       const historyPayload: ChatMessage[] = updatedMessages.map((m) => ({
         role: m.role,
         content: m.content,
       }));
 
-      // Call backend ask API with question, history, AND uploaded user_documents
+      // Call backend ask API with question, active session ID for persistent DB memory, history, AND user_documents
       const response = await askKnowledgeBase(
         query,
+        activeSessionId,
         historyPayload,
         userDocuments.length > 0 ? userDocuments : undefined
       );
 
-      // Source citation: if custom doc present, cite custom doc + KB
       const sourceCitation =
         userDocuments.length > 0
           ? `User Ref: ${userDocuments.map((d) => d.name).join(", ")} | AWS Knowledge Base`
           : "travel-guides/visa-japan.pdf (AWS Knowledge Base Verified)";
 
-      const assistantMessage: ExtendedChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: response.answer,
-        source: sourceCitation,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
+      if (response.history && response.history.length > 0) {
+        const serverMessages: ExtendedChatMessage[] = response.history.map((m, idx) => ({
+          id: m.id || `${Date.now()}_${idx}`,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          timestamp: m.timestamp || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          source: m.role === "assistant" ? sourceCitation : undefined,
+        }));
 
-      setSessions((prevSessions) =>
-        prevSessions.map((s) =>
-          s.id === activeSessionId
-            ? { ...s, messages: [...updatedMessages, assistantMessage] }
-            : s
-        )
-      );
+        setSessions((prevSessions) =>
+          prevSessions.map((s) =>
+            s.id === activeSessionId || s.id === response.conversation_id
+              ? {
+                  ...s,
+                  id: response.conversation_id || s.id,
+                  title: sessionTitle,
+                  messages: serverMessages,
+                }
+              : s
+          )
+        );
+
+        if (response.conversation_id && response.conversation_id !== activeSessionId) {
+          setActiveSessionId(response.conversation_id);
+        }
+      } else {
+        const assistantMessage: ExtendedChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: response.answer,
+          source: sourceCitation,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+
+        setSessions((prevSessions) =>
+          prevSessions.map((s) =>
+            s.id === activeSessionId
+              ? { ...s, messages: [...updatedMessages, assistantMessage] }
+              : s
+          )
+        );
+      }
     } catch (err) {
       const msg =
         err instanceof Error
@@ -327,7 +455,7 @@ export default function AssistantPage() {
 
   return (
     <main className="page-shell mx-auto flex h-screen max-h-screen w-full max-w-7xl flex-col justify-between px-3 py-3 sm:px-6 lg:px-8 box-border overflow-hidden bg-[#f4f1e9]">
-      {/* Header & Top Navigation (Fixed Shrink-0) */}
+      {/* Header & Top Navigation */}
       <header className="mb-2.5 border-b-2 border-slate-900 pb-2.5 shrink-0 bg-white p-3 rounded-xl shadow-[4px_4px_0_#176b50]">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -417,38 +545,66 @@ export default function AssistantPage() {
                 return (
                   <div
                     key={sess.id}
-                    onClick={() => {
-                      setActiveSessionId(sess.id);
-                      setUserDocuments(sess.userDocuments || []);
-                    }}
+                    onClick={() => handleSelectSession(sess.id)}
                     className={`group relative flex items-center justify-between p-2.5 rounded-lg border-2 text-xs font-medium cursor-pointer transition-all ${
                       isActive
                         ? "border-slate-900 bg-[#176b50] text-white shadow-[3px_3px_0_#0f4333]"
                         : "border-slate-300 bg-slate-50 hover:bg-yellow-50 text-slate-800 hover:border-slate-900"
                     }`}
                   >
-                    <div className="truncate flex-1 pr-2">
-                      <p className="truncate font-bold">
-                        {sess.title || "Obrolan Baru"}
-                      </p>
-                      <p
-                        className={`text-[9px] mt-0.5 ${
-                          isActive ? "text-emerald-200" : "text-slate-400"
-                        }`}
-                      >
-                        {sess.messages.length} pesan · {sess.updatedAt}
-                      </p>
-                    </div>
+                    {editingSessionId === sess.id ? (
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => handleRenameSession(sess.id, editingTitle)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRenameSession(sess.id, editingTitle);
+                          if (e.key === "Escape") setEditingSessionId(null);
+                        }}
+                        autoFocus
+                        className="flex-1 bg-white border border-slate-900 px-1.5 py-0.5 text-xs text-slate-900 font-bold rounded"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <div className="truncate flex-1 pr-1">
+                        <p className="truncate font-bold">
+                          {sess.title || "Obrolan Baru"}
+                        </p>
+                        <p
+                          className={`text-[9px] mt-0.5 ${
+                            isActive ? "text-emerald-200" : "text-slate-400"
+                          }`}
+                        >
+                          {sess.messages.length} pesan · {sess.updatedAt}
+                        </p>
+                      </div>
+                    )}
 
-                    <button
-                      onClick={(e) => handleDeleteSession(sess.id, e)}
-                      className={`text-xs opacity-60 hover:opacity-100 p-1 hover:text-red-400 ${
-                        isActive ? "text-white" : "text-slate-600"
-                      }`}
-                      title="Hapus percakapan ini"
-                    >
-                      🗑️
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingSessionId(sess.id);
+                          setEditingTitle(sess.title || "Obrolan Baru");
+                        }}
+                        className={`text-xs opacity-60 hover:opacity-100 p-0.5 hover:text-yellow-300 ${
+                          isActive ? "text-white" : "text-slate-600"
+                        }`}
+                        title="Ubah nama percakapan (Rename)"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteSession(sess.id, e)}
+                        className={`text-xs opacity-60 hover:opacity-100 p-0.5 hover:text-red-400 ${
+                          isActive ? "text-white" : "text-slate-600"
+                        }`}
+                        title="Hapus percakapan ini"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -479,7 +635,7 @@ export default function AssistantPage() {
                 {activeSession?.title || "Obrolan Baru"}
               </h2>
               <p className="text-[11px] text-slate-600">
-                Knowledge Base RAG & Custom Document Notebook
+                Knowledge Base RAG & Persistent DB Memory
               </p>
             </div>
 
@@ -562,10 +718,10 @@ export default function AssistantPage() {
               <div className="my-auto flex flex-col items-center justify-center py-8 text-center">
                 <div className="text-4xl mb-2">💬</div>
                 <h3 className="text-base font-bold text-slate-800">
-                  KelanaAI Travel Assistant & Notebook
+                  KelanaAI Travel Assistant & Memory
                 </h3>
                 <p className="text-xs text-slate-600 max-w-sm mt-1">
-                  Tanyakan hal seputar travel, visa, atau unggah dokumen referensi tambahan Anda dengan tombol 📎 Tambah Referensi!
+                  Tanyakan hal seputar travel, visa, atau tempat wisata. KelanaAI akan mengingat riwayat obrolan Anda secara otomatis!
                 </p>
               </div>
             ) : (
@@ -622,7 +778,7 @@ export default function AssistantPage() {
                 <div className="max-w-[75%] p-3.5 rounded-xl border-2 border-slate-900 bg-[#176b50] text-white shadow-[3px_3px_0_#0f4333] flex items-center gap-3">
                   <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   <span className="text-xs font-bold">
-                    Reading Knowledge Base & Notebook Documents...
+                    Thinking with Conversation Memory & Knowledge Base...
                   </span>
                 </div>
               </div>
@@ -631,7 +787,7 @@ export default function AssistantPage() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Suggestion Chips: HIDES once the first question is asked */}
+          {/* Suggestion Chips */}
           {!isGuestLimitReached && messages.length === 0 && (
             <div className="p-2.5 bg-yellow-50/90 border-t-2 border-slate-900 shrink-0 flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-600 mr-1">
@@ -695,9 +851,9 @@ export default function AssistantPage() {
         </section>
       </div>
 
-      {/* Footer (Fixed Shrink-0) */}
+      {/* Footer */}
       <footer className="shrink-0 text-xs flex justify-between items-center text-slate-600 border-t border-slate-300 pt-1.5">
-        <span>KelanaAI Conversational Assistant · RAG & Notebook</span>
+        <span>KelanaAI Conversational Assistant · RAG & Persistent Memory</span>
         <span>&copy; 2026 KelanaAI</span>
       </footer>
     </main>
