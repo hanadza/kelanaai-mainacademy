@@ -284,3 +284,42 @@ Session 9 equips KelanaAI with **Retrieval-Augmented Generation (RAG)** capabili
    - 3 travel documents created in `backend/documents/` (South Korea, Singapore, Travel Insurance).
    - Tested 5 specific questions comparing **Base Model (Pure LLM)** vs **RAG Grounded Model**.
    - RAG Model achieved **100% accuracy** with zero hallucinations and accurate source citations.
+
+## Session 10 - Teaching KelanaAI to Remember Conversations
+
+Session 10 equips KelanaAI with **persistent conversational memory**, storing all conversation threads and message histories in PostgreSQL database tables and feeding multi-turn context to AWS Bedrock so the AI remembers prior conversation context across turns.
+
+### Features Added & Architecture
+
+1. **Relational Database Schema for Chat Memory (`conversations` & `messages`)**:
+   - `conversations` Table: `id` (PK, BigInt), `user_id` (FK referencing `users.id`, nullable for guest sessions), `title` (VarChar 256), `created_at` (Timestamp).
+   - `messages` Table: `id` (PK, BigInt), `conversation_id` (FK referencing `conversations.id` ON DELETE CASCADE), `role` (VarChar 16: `'user'` or `'assistant'`), `content` (Text), `created_at` (Timestamp).
+   - Relational Mapping: One Conversation -> Many Messages (`1:N`).
+
+2. **Session 10 Endpoints (Parts 3, 4, & 5)**:
+   - `POST /api/v1/conversations` (Part 3) : Creates a new conversation session row in DB and returns `{ "conversation_id": <id> }` with HTTP 201 Created.
+   - `GET /api/v1/conversations` (Part 3) : Lists previous chat conversations for the current user.
+   - `GET /api/v1/conversations/{id}` (Part 7) : Fetches all historical messages for a specific conversation session.
+   - `POST /api/v1/conversations/{id}/messages` (Part 4 Orchestration Flow) : Executes 7-step backend orchestration:
+     1. Receive User Message
+     2. Save Message to DB (`role="user"`)
+     3. Load Previous Messages from DB
+     4. Build Context-Aware Prompt History
+     5. Query Amazon Bedrock AI
+     6. Save AI Response to DB (`role="assistant"`)
+     7. Return Response
+   - `PATCH /api/v1/conversations/{id}` (Bonus Challenge) : Renames conversation title.
+   - `DELETE /api/v1/conversations/{id}` : Deletes conversation thread.
+
+3. **Prompt Builder & Context Window Trimming (Part 5 & Part 8)**:
+   - Context-aware Prompt Builder constructs chat history turns before calling Bedrock so the LLM remembers previous questions (e.g., asking *"Plan a trip to Japan"* followed by *"What about Day 2?"*).
+   - Context Window Trimming: Implements sliding window (`MAX_HISTORY_TURNS = 20`) to keep token usage efficient, control cost, and prevent exceeding model context limits.
+
+4. **Next.js Chat Interface & 4 UX Wins (Parts 6 & 7 + Challenge & Homework)**:
+   - Route `/chat` and `/assistant` ([frontend/app/chat/page.tsx](file:///c:/Users/Aditya%20Ihsan%20Maulana/Documents/S1-Informatika/Pelatihan/MAIN-Academy/KelanaAI/frontend/app/chat/page.tsx) & [frontend/app/assistant/page.tsx](file:///c:/Users/Aditya%20Ihsan%20Maulana/Documents/S1-Informatika/Pelatihan/MAIN-Academy/KelanaAI/frontend/app/assistant/page.tsx)).
+   - **Conversation List on Left Sidebar (Core Challenge)**: Displays list of previous chat sessions. Clicking a conversation loads all past messages into the chat view.
+   - **Rename Conversations (Bonus Challenge)**: Inline title editing with pencil icon (✏️) calling `PATCH /api/v1/conversations/{id}`.
+   - **01. Conversation Title**: Dynamic title displayed in top chat header bar.
+   - **02. Auto-scroll to Latest Message**: Smooth auto-scroll upon opening/switching conversations and when new messages arrive.
+   - **03. Typing Indicator**: Animated spinner + status indicator while AI is generating responses.
+   - **04. Timestamp for Each Message**: Exact creation timestamp (e.g., `22:10` / `14:22`) on every message bubble.
