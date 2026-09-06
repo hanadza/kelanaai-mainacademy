@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useGoogleLogin } from "@react-oauth/google";
 import { login, loginWithGoogle } from "@/services/authService";
 
 export default function LoginPage() {
@@ -28,18 +29,43 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleAuth = async () => {
-    setLoading(true);
+  const triggerGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const profile = await res.json();
+        if (!profile.email) {
+          throw new Error("Gagal mengambil email dari akun Google.");
+        }
+        await loginWithGoogle(
+          tokenResponse.access_token,
+          profile.name,
+          profile.email,
+          profile.sub,
+          profile.picture
+        );
+        router.push("/assistant");
+      } catch (err: any) {
+        setError(err.message || "Gagal masuk dengan akun Google.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => {
+      setError("Gagal terhubung ke Google. Pastikan GOOGLE_CLIENT_ID sudah dikonfigurasi.");
+    },
+  });
+
+  const handleGoogleAuth = () => {
     setError(null);
     try {
-      const userEmail = email || `user.${Date.now().toString().slice(-5)}@gmail.com`;
-      const userName = "Google User";
-      await loginWithGoogle(userName, userEmail);
-      router.push("/assistant");
+      triggerGoogleLogin();
     } catch (err: any) {
-      setError(err.message || "Gagal masuk dengan akun Google.");
-    } finally {
-      setLoading(false);
+      setError("Gagal membuka Google Sign-In. Periksa konfigurasi NEXT_PUBLIC_GOOGLE_CLIENT_ID.");
     }
   };
 

@@ -323,3 +323,33 @@ Session 10 equips KelanaAI with **persistent conversational memory**, storing al
    - **02. Auto-scroll to Latest Message**: Smooth auto-scroll upon opening/switching conversations and when new messages arrive.
    - **03. Typing Indicator**: Animated spinner + status indicator while AI is generating responses.
    - **04. Timestamp for Each Message**: Exact creation timestamp (e.g., `22:10` / `14:22`) on every message bubble.
+
+## Google OAuth 2.0 Configuration Guide
+
+KelanaAI mendukung **Single-Click Register & Login** menggunakan akun Google. Pengguna dapat mendaftar/masuk langsung dengan akun Google mereka tanpa perlu mengisi form registrasi manual, dan secara otomatis terdaftar di database PostgreSQL `users`.
+
+### Langkah Konfigurasi Google Cloud Console:
+1. Buka [Google Cloud Console](https://console.cloud.google.com/).
+2. Buat proyek baru atau pilih proyek yang sudah ada.
+3. Ke **APIs & Services** > **OAuth consent screen**:
+   - User Type: **External** -> Klik **Create**.
+   - Isi **App name** (`KelanaAI`), **User support email**, dan **Developer contact information**.
+   - Klik **Save and Continue**.
+4. Ke **APIs & Services** > **Credentials**:
+   - Klik **+ CREATE CREDENTIALS** > **OAuth client ID**.
+   - Application type: **Web application**.
+   - **Authorized JavaScript origins**:
+     - `http://localhost:3000`
+     - `http://127.0.0.1:3000`
+   - **Authorized redirect URIs**:
+     - `http://localhost:3000`
+     - `http://127.0.0.1:3000`
+5. Salin Client ID yang dihasilkan dan tambahkan ke file `.env`:
+   - `frontend/.env.local`:
+     ```env
+     NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com
+     ```
+   - `backend/.env` (atau root `.env`):
+     ```env
+     GOOGLE_CLIENT_ID=xxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com
+     ```

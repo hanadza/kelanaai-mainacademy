@@ -32,11 +32,12 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
 
-    # Check and add user_id column to trips if it doesn't exist yet
+    # Execute migrations for user_id in trips and google_id / avatar in users table
     with engine.connect() as conn:
         conn.execute(text("""
             DO $$
             BEGIN
+                -- Add user_id to trips table if not existing
                 IF NOT EXISTS (
                     SELECT 1 
                     FROM information_schema.columns 
@@ -44,6 +45,28 @@ def init_db() -> None:
                 ) THEN
                     ALTER TABLE trips ADD COLUMN user_id BIGINT REFERENCES users(id) ON DELETE CASCADE;
                 END IF;
+
+                -- Add google_id to users table if not existing
+                IF NOT EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name='users' AND column_name='google_id'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN google_id VARCHAR(255);
+                    CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users(google_id);
+                END IF;
+
+                -- Add avatar to users table if not existing
+                IF NOT EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name='users' AND column_name='avatar'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN avatar VARCHAR(512);
+                END IF;
+
+                -- Make password_hash nullable for OAuth users
+                ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
             END $$;
         """))
         conn.commit()

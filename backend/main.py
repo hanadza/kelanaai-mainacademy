@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from typing import Optional, List, Dict
 import os
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
 from sqlalchemy.orm import Session
 from services.trip_service import (
     calculate_daily_budget,
@@ -49,8 +52,13 @@ class LoginRequest(BaseModel):
 
 
 class GoogleLoginRequest(BaseModel):
-    email: str
-    name: str
+    credential: Optional[str] = None
+    token: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    google_id: Optional[str] = None
+    avatar: Optional[str] = None
+
 
 
 class TripRequest(BaseModel):
@@ -179,7 +187,17 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 @app.post("/api/v1/auth/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
-    if not user or not verify_password(request.password, user.password_hash):
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Email atau password yang Anda masukkan salah."
+        )
+    if not user.password_hash or not verify_password(request.password, user.password_hash):
+        if user.google_id and not user.password_hash:
+            raise HTTPException(
+                status_code=401,
+                detail="Akun ini terdaftar menggunakan Google. Silakan masuk menggunakan tombol 'Masuk dengan Google'."
+            )
         raise HTTPException(
             status_code=401,
             detail="Email atau password yang Anda masukkan salah."
@@ -197,6 +215,8 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             "id": user.id,
             "name": user.name,
             "email": user.email,
+            "google_id": user.google_id,
+            "avatar": user.avatar,
         }
     }
 
@@ -205,20 +225,71 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
     """
     Google Sign-In/Sign-Up endpoint.
-    Automatically creates a user if not existing and returns a JWT access token.
+    Decodes/verifies Google ID token or token payload to extract email, name, google_id, avatar.
+    Upserts user record into PostgreSQL users table and returns KelanaAI JWT token.
     """
-    user = db.query(User).filter(User.email == request.email).first()
+    token = request.credential or request.token
+    email = request.email
+    name = request.name
+    google_id = request.google_id
+    avatar = request.avatar
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+
+    if token:
+        try:
+            # Verify Google OAuth2 ID Token
+            id_info = id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                google_client_id if google_client_id else None
+            )
+            email = id_info.get("email") or email
+            name = id_info.get("name") or name or (email.split("@")[0] if email else "Google User")
+            google_id = id_info.get("sub") or google_id
+            avatar = id_info.get("picture") or avatar
+        except Exception:
+            pass
+
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email wajib ada untuk otentikasi Google."
+        )
+
+    # Search user by google_id first, then email
+    user = None
+    if google_id:
+        user = db.query(User).filter(User.google_id == google_id).first()
     if not user:
-        # Create user with secure random hash for password
-        random_pwd = hash_password(os.urandom(16).hex())
+        user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        # Create new user record in PostgreSQL DB
         user = User(
-            name=request.name,
-            email=request.email,
-            password_hash=random_pwd,
+            name=name or email.split("@")[0],
+            email=email,
+            google_id=google_id,
+            password_hash=None,
+            avatar=avatar,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    else:
+        # Sync google_id, avatar, and name if updated
+        updated = False
+        if google_id and not user.google_id:
+            user.google_id = google_id
+            updated = True
+        if avatar and user.avatar != avatar:
+            user.avatar = avatar
+            updated = True
+        if name and user.name != name:
+            user.name = name
+            updated = True
+        if updated:
+            db.commit()
+            db.refresh(user)
 
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email, "name": user.name}
@@ -231,8 +302,12 @@ def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
             "id": user.id,
             "name": user.name,
             "email": user.email,
+            "google_id": user.google_id,
+            "avatar": user.avatar,
         }
     }
+
+
 
 
 # Challenge Endpoint: GET /api/v1/auth/me (Returns current user info and total trip count)
@@ -246,6 +321,8 @@ def get_current_user_profile(
         "id": current_user.id,
         "name": current_user.name,
         "email": current_user.email,
+        "google_id": current_user.google_id,
+        "avatar": current_user.avatar,
         "total_trips": total_trips,
         "created_at": current_user.created_at,
     }

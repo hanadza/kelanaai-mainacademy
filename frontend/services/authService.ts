@@ -5,6 +5,8 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  google_id?: string | null;
+  avatar?: string | null;
 }
 
 export interface UserProfile extends User {
@@ -48,14 +50,17 @@ export async function getProfile(): Promise<UserProfile> {
 }
 
 export async function loginWithGoogle(
-  name: string,
-  email: string
+  credential?: string,
+  name?: string,
+  email?: string,
+  google_id?: string,
+  avatar?: string
 ): Promise<AuthResponse> {
   try {
     const res = await fetch(`${API_URL}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email }),
+      body: JSON.stringify({ credential, name, email, google_id, avatar }),
     });
 
     const data = await res.json().catch(() => null);

@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useGoogleLogin } from "@react-oauth/google";
 import { register, login, loginWithGoogle } from "@/services/authService";
 
 export default function RegisterPage() {
@@ -32,18 +33,43 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleAuth = async () => {
-    setLoading(true);
+  const triggerGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const profile = await res.json();
+        if (!profile.email) {
+          throw new Error("Gagal mengambil email dari akun Google.");
+        }
+        await loginWithGoogle(
+          tokenResponse.access_token,
+          profile.name,
+          profile.email,
+          profile.sub,
+          profile.picture
+        );
+        router.push("/assistant");
+      } catch (err: any) {
+        setError(err.message || "Gagal mendaftar dengan akun Google.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => {
+      setError("Gagal terhubung ke Google. Pastikan GOOGLE_CLIENT_ID sudah dikonfigurasi.");
+    },
+  });
+
+  const handleGoogleAuth = () => {
     setError(null);
     try {
-      const userEmail = email || `user.${Date.now().toString().slice(-5)}@gmail.com`;
-      const userName = name || "Google Traveler";
-      await loginWithGoogle(userName, userEmail);
-      router.push("/assistant");
+      triggerGoogleLogin();
     } catch (err: any) {
-      setError(err.message || "Gagal mendaftar dengan akun Google.");
-    } finally {
-      setLoading(false);
+      setError("Gagal membuka Google Sign-In. Periksa konfigurasi NEXT_PUBLIC_GOOGLE_CLIENT_ID.");
     }
   };
 
@@ -156,6 +182,47 @@ export default function RegisterPage() {
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
+
+            {/* Password Strength Indicator */}
+            {password.length > 0 && (() => {
+              let score = 0;
+              if (password.length >= 6) score += 1;
+              if (password.length >= 8) score += 1;
+              if (/[0-9]/.test(password)) score += 1;
+              if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
+              if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+              let label = "Lemah 🔴";
+              let color = "text-red-600 bg-red-50 border-red-200";
+              let barColor = "bg-red-500";
+              let barWidth = "w-1/3";
+
+              if (score >= 4) {
+                label = "Kuat 🟢";
+                color = "text-emerald-700 bg-emerald-50 border-emerald-200";
+                barColor = "bg-emerald-500";
+                barWidth = "w-full";
+              } else if (score >= 2) {
+                label = "Sedang 🟡";
+                color = "text-amber-700 bg-amber-50 border-amber-200";
+                barColor = "bg-amber-500";
+                barWidth = "w-2/3";
+              }
+
+              return (
+                <div className="mt-2 space-y-1.5 bg-gray-50/80 p-2.5 rounded-xl border border-gray-200/60">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-gray-500">Kekuatan Password:</span>
+                    <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${color}`}>
+                      {label}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div className={`h-full ${barColor} ${barWidth} transition-all duration-300 rounded-full`} />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <button

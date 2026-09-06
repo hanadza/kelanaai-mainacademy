@@ -70,16 +70,29 @@ export default function ProfilePage() {
             <div className="bg-white border border-[#d8d3c8] rounded-2xl shadow-xl p-8 space-y-8">
               {/* Profile Header Card */}
               <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-gray-100">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#176b50] to-[#25a17a] flex items-center justify-center text-white text-3xl font-bold shadow-md">
-                  {profile.name.charAt(0).toUpperCase()}
-                </div>
+                {profile.avatar ? (
+                  <img
+                    src={profile.avatar}
+                    alt={profile.name}
+                    className="w-20 h-20 rounded-full object-cover shadow-md border-2 border-[#176b50]"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#176b50] to-[#25a17a] flex items-center justify-center text-white text-3xl font-bold shadow-md">
+                    {profile.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="text-center sm:text-left space-y-1">
                   <h1 className="text-3xl font-serif font-bold text-[#18221f]">{profile.name}</h1>
                   <p className="text-sm text-gray-500 font-mono">{profile.email}</p>
-                  <div className="pt-1">
+                  <div className="pt-1 flex items-center gap-1.5 justify-center sm:justify-start">
                     <span className="inline-block bg-[#176b50]/10 text-[#176b50] text-xs font-bold px-2.5 py-0.5 rounded-full">
                       KelanaAI Traveler
                     </span>
+                    {profile.google_id && (
+                      <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <span>🔍</span> Google Account
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
