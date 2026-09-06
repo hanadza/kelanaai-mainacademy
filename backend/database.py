@@ -67,6 +67,24 @@ def init_db() -> None:
 
                 -- Make password_hash nullable for OAuth users
                 ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+
+                -- Add reset_otp to users table if not existing
+                IF NOT EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name='users' AND column_name='reset_otp'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN reset_otp VARCHAR(10);
+                END IF;
+
+                -- Add reset_otp_expires_at to users table if not existing
+                IF NOT EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name='users' AND column_name='reset_otp_expires_at'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN reset_otp_expires_at TIMESTAMP WITH TIME ZONE;
+                END IF;
             END $$;
         """))
         conn.commit()

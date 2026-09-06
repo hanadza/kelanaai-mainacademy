@@ -18,13 +18,36 @@ export default function RegisterPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+
+    // 1. Validate Name (letters and spaces only)
+    if (!cleanName || !/^[a-zA-Z\s'-]+$/.test(cleanName)) {
+      setError("Nama hanya boleh berisi huruf dan spasi.");
+      return;
+    }
+
+    // 2. Validate Email Format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setError("Format email tidak valid (contoh: user@email.com).");
+      return;
+    }
+
+    // 3. Validate Password Length
+    if (password.length < 6) {
+      setError("Password minimal 6 karakter.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       // 1. Register user
-      await register(name, email, password);
+      await register(cleanName, cleanEmail, password);
       // 2. Auto-login after successful registration
-      await login(email, password);
+      await login(cleanEmail, password);
       router.push("/assistant");
     } catch (err: any) {
       setError(err.message || "Gagal melakukan registrasi.");
@@ -135,7 +158,7 @@ export default function RegisterPage() {
                 type="text"
                 required
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.replace(/[^a-zA-Z\s'-]/g, ""))}
                 placeholder="Alice"
                 className="w-full bg-transparent text-sm text-[#18221f] placeholder:text-gray-400 focus:outline-none border-none p-0"
               />

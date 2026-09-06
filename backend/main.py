@@ -4,7 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from typing import Optional, List, Dict
 import os
+import re
+import random
+from datetime import datetime, timedelta, timezone
 from google.oauth2 import id_token
+
+
 from google.auth.transport import requests as google_requests
 
 from sqlalchemy.orm import Session
@@ -58,6 +63,22 @@ class GoogleLoginRequest(BaseModel):
     name: Optional[str] = None
     google_id: Optional[str] = None
     avatar: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    new_password: str
+
 
 
 
@@ -152,22 +173,45 @@ def transportations():
     return ["Bus", "Train", "Flight"]
 
 
-# Auth Endpoints (Session 8)
 @app.post("/api/v1/auth/register", status_code=201)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    # Check if email is already taken
-    existing_user = db.query(User).filter(User.email == request.email).first()
+    # 1. Validate Name (letters, spaces, hyphens, apostrophes only)
+    clean_name = request.name.strip()
+    if not clean_name or not re.match(r"^[a-zA-Z\s'-]+$", clean_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Nama hanya boleh berisi huruf dan spasi."
+        )
+
+    # 2. Validate Email format
+    clean_email = request.email.strip().lower()
+    email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    if not clean_email or not re.match(email_regex, clean_email):
+        raise HTTPException(
+            status_code=400,
+            detail="Format email tidak valid (contoh: user@email.com)."
+        )
+
+    # 3. Validate Password length
+    if len(request.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password minimal 6 karakter."
+        )
+
+    # 4. Check duplicate email in PostgreSQL DB
+    existing_user = db.query(User).filter(User.email == clean_email).first()
     if existing_user:
         raise HTTPException(
             status_code=400,
-            detail="Email is already registered"
+            detail="Email sudah terdaftar. Silakan gunakan email lain atau masuk."
         )
 
     # Hash password and create User (never store plain text)
     hashed_password = hash_password(request.password)
     user = User(
-        name=request.name,
-        email=request.email,
+        name=clean_name,
+        email=clean_email,
         password_hash=hashed_password,
     )
     db.add(user)
@@ -326,6 +370,99 @@ def get_current_user_profile(
         "total_trips": total_trips,
         "created_at": current_user.created_at,
     }
+
+
+# Password Reset via OTP Endpoints
+@app.post("/api/v1/auth/forgot-password")
+def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    clean_email = request.email.strip().lower()
+    user = db.query(User).filter(User.email == clean_email).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Email tidak ditemukan. Pastikan email yang Anda masukkan sudah terdaftar."
+        )
+    if not user.password_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Akun ini terdaftar via Google. Silakan masuk langsung menggunakan tombol 'Masuk dengan Google'."
+        )
+
+    # Generate 6-digit OTP code valid for 15 minutes
+    otp = f"{random.randint(100000, 999999)}"
+    user.reset_otp = otp
+    user.reset_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    db.commit()
+
+    print(f"[OTP LOG] Reset OTP code for {clean_email}: {otp}")
+
+    return {
+        "message": f"Kode OTP telah dikirim ke email {clean_email}.",
+        "otp": otp
+    }
+
+
+@app.post("/api/v1/auth/verify-otp")
+def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+    clean_email = request.email.strip().lower()
+    clean_otp = request.otp.strip()
+    user = db.query(User).filter(User.email == clean_email).first()
+
+    if not user or user.reset_otp != clean_otp:
+        raise HTTPException(
+            status_code=400,
+            detail="Kode OTP yang Anda masukkan salah."
+        )
+
+    if user.reset_otp_expires_at:
+        expires_at = user.reset_otp_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=400,
+                detail="Kode OTP telah kadaluarsa (berlaku 15 menit). Silakan minta kode baru."
+            )
+
+    return {"message": "Kode OTP valid. Silakan masukkan password baru."}
+
+
+@app.post("/api/v1/auth/reset-password")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    clean_email = request.email.strip().lower()
+    clean_otp = request.otp.strip()
+    new_password = request.new_password
+
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password baru minimal 6 karakter."
+        )
+
+    user = db.query(User).filter(User.email == clean_email).first()
+    if not user or user.reset_otp != clean_otp:
+        raise HTTPException(
+            status_code=400,
+            detail="Kode OTP salah atau telah terpakai."
+        )
+
+    if user.reset_otp_expires_at:
+        expires_at = user.reset_otp_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=400,
+                detail="Kode OTP telah kadaluarsa. Silakan minta kode baru."
+            )
+
+    # Hash new password, update User, and clear OTP
+    user.password_hash = hash_password(new_password)
+    user.reset_otp = None
+    user.reset_otp_expires_at = None
+    db.commit()
+
+    return {"message": "Password Anda berhasil diperbarui! Silakan masuk dengan password baru Anda."}
 
 
 # Protected Trip Endpoints (Session 8 Parts 5 & 6 + Homework Ownership Protection 403)

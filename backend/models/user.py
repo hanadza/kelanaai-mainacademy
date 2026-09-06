@@ -6,10 +6,12 @@ from database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id            = Column(BigInteger, primary_key=True, index=True)
-    name          = Column(String(100), nullable=False)
-    email         = Column(String(255), unique=True, nullable=False, index=True)
-    google_id     = Column(String(255), unique=True, nullable=True, index=True)
-    password_hash = Column(String(255), nullable=True)
-    avatar        = Column(String(512), nullable=True)
-    created_at    = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    id                   = Column(BigInteger, primary_key=True, index=True)
+    name                 = Column(String(100), nullable=False)
+    email                = Column(String(255), unique=True, nullable=False, index=True)
+    google_id            = Column(String(255), unique=True, nullable=True, index=True)
+    password_hash        = Column(String(255), nullable=True)
+    avatar               = Column(String(512), nullable=True)
+    reset_otp            = Column(String(10), nullable=True)
+    reset_otp_expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at           = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

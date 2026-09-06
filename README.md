@@ -324,6 +324,44 @@ Session 10 equips KelanaAI with **persistent conversational memory**, storing al
    - **03. Typing Indicator**: Animated spinner + status indicator while AI is generating responses.
    - **04. Timestamp for Each Message**: Exact creation timestamp (e.g., `22:10` / `14:22`) on every message bubble.
 
+## Session 10.1 - Google OAuth 2.0 & Password Strength Meter (`tag: session-10.1`)
+
+Session 10.1 menghadirkan otentikasi **Single-Click Register & Login** menggunakan akun Google serta **Password Strength Meter** pada halaman registrasi.
+
+### Features Added & Architecture:
+1. **Google OAuth 2.0 Integration**:
+   - Integrated `@react-oauth/google` and Google Identity Services SDK on Next.js frontend ([components/GoogleAuthProvider.tsx](file:///c:/Users/Aditya%20Ihsan%20Maulana/Documents/S1-Informatika/Pelatihan/MAIN-Academy/KelanaAI/frontend/components/GoogleAuthProvider.tsx)).
+   - Backend ID Token verification using `google-auth` library on `POST /api/v1/auth/google`.
+2. **PostgreSQL Database Schema Enhancements (`users` Table)**:
+   - `google_id` (VARCHAR 255, Unique, Nullable): Google's unique `sub` identifier.
+   - `password_hash` (VARCHAR 255, **Nullable**): Allows passwordless user creation for Google accounts.
+   - `avatar` (VARCHAR 512, Nullable): Google profile picture URL (`picture`).
+   - Auto-migration script added in `database.py` (`init_db()`).
+3. **Password Strength Indicator**:
+   - Real-time password strength meter (**Lemah 🔴**, **Sedang 🟡**, **Kuat 🟢**) with animated progress bar and color-coded badges on `/register`.
+4. **Enhanced Profile View (`/profile`)**:
+   - Renders Google profile avatar photo and displays **🔍 Google Account** badge.
+
+## Session 10.2 - Password Reset via OTP & Strict Form Validations (`tag: session-10.2`)
+
+Session 10.2 menambahkan fitur **Reset Password dengan Kode OTP 6-Digit** untuk pengguna registrasi manual serta pengetatan **Validasi Input Formulir**.
+
+### Features Added & Architecture:
+1. **Password Reset via 6-Digit OTP Flow**:
+   - `POST /api/v1/auth/forgot-password`: Generates 6-digit numeric OTP valid for 15 minutes, stores in `reset_otp` & `reset_otp_expires_at` in DB, and prints to server console (`[OTP LOG]`).
+   - **Google Account Security**: Rejects local password reset requests for Google OAuth accounts (`password_hash` `null`) with explicit guidance.
+   - `POST /api/v1/auth/verify-otp`: Validates 6-digit OTP code and expiration timestamp.
+   - `POST /api/v1/auth/reset-password`: Hashes new password with bcrypt, updates DB, and clears OTP.
+2. **Frontend 3-Step Wizard UI ([frontend/app/forgot-password/page.tsx](file:///c:/Users/Aditya%20Ihsan%20Maulana/Documents/S1-Informatika/Pelatihan/MAIN-Academy/KelanaAI/frontend/app/forgot-password/page.tsx))**:
+   - **Step 1**: Input Registered Email -> Request OTP.
+   - **Step 2**: Input 6-Digit OTP -> Verify Code (Includes Dev Mode OTP chip for rapid testing).
+   - **Step 3**: Input New Password + Password Strength Meter -> Save New Password.
+   - **Step 4**: Success State -> Back to Login button.
+3. **Strict Input Validations**:
+   - **Duplicate Email Prevention**: Prevents registering with an existing email in DB.
+   - **Regex Email Crosscheck**: Validates email format on frontend and backend (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) to reject plain non-email strings.
+   - **Real-Time Name Input Filter**: Restricts name input to letters, spaces, hyphens, and apostrophes only.
+
 ## Google OAuth 2.0 Configuration Guide
 
 KelanaAI mendukung **Single-Click Register & Login** menggunakan akun Google. Pengguna dapat mendaftar/masuk langsung dengan akun Google mereka tanpa perlu mengisi form registrasi manual, dan secara otomatis terdaftar di database PostgreSQL `users`.

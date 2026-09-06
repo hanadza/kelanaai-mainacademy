@@ -171,3 +171,70 @@ export function getAuthHeaders(): Record<string, string> {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
+
+export async function requestForgotPassword(email: string): Promise<{ message: string; otp?: string }> {
+  try {
+    const res = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(parseErrorMessage(data, "Gagal meminta kode OTP."));
+    }
+    return data;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("fetch")) {
+      throw new Error("Gagal terhubung ke server backend (http://localhost:8000). Pastikan server FastAPI sedang berjalan.");
+    }
+    throw err;
+  }
+}
+
+export async function verifyOTP(email: string, otp: string): Promise<{ message: string }> {
+  try {
+    const res = await fetch(`${API_URL}/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(parseErrorMessage(data, "Kode OTP salah atau kadaluarsa."));
+    }
+    return data;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("fetch")) {
+      throw new Error("Gagal terhubung ke server backend.");
+    }
+    throw err;
+  }
+}
+
+export async function resetPassword(
+  email: string,
+  otp: string,
+  new_password: string
+): Promise<{ message: string }> {
+  try {
+    const res = await fetch(`${API_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp, new_password }),
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(parseErrorMessage(data, "Gagal menyetel ulang password."));
+    }
+    return data;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("fetch")) {
+      throw new Error("Gagal terhubung ke server backend.");
+    }
+    throw err;
+  }
+}
