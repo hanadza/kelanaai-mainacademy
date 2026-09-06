@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-dotenv
+boto3==1.43.56
+certifi>=2024.8.30
+bcrypt>=4.0.1
+python-jose[cryptography]>=3.3.0
+google-auth>=2.20.0
