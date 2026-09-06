@@ -324,7 +324,7 @@ Session 10 equips KelanaAI with **persistent conversational memory**, storing al
    - **03. Typing Indicator**: Animated spinner + status indicator while AI is generating responses.
    - **04. Timestamp for Each Message**: Exact creation timestamp (e.g., `22:10` / `14:22`) on every message bubble.
 
-## Session 10.1 - Google OAuth 2.0 & Password Strength Meter (`tag: session-10.1`)
+## Session 10.1 - Google OAuth 2.0 & Password Strength Meter
 
 Session 10.1 menghadirkan otentikasi **Single-Click Register & Login** menggunakan akun Google serta **Password Strength Meter** pada halaman registrasi.
 
@@ -342,7 +342,7 @@ Session 10.1 menghadirkan otentikasi **Single-Click Register & Login** menggunak
 4. **Enhanced Profile View (`/profile`)**:
    - Renders Google profile avatar photo and displays **🔍 Google Account** badge.
 
-## Session 10.2 - Password Reset via OTP & Strict Form Validations (`tag: session-10.2`)
+## Session 10.2 - Password Reset via OTP & Strict Form Validations
 
 Session 10.2 menambahkan fitur **Reset Password dengan Kode OTP 6-Digit** untuk pengguna registrasi manual serta pengetatan **Validasi Input Formulir**.
 
