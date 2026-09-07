@@ -1,10 +1,5 @@
 import type { Trip, TripRequest } from "@/types/trip";
-import { getAuthHeaders } from "./authService";
-
-// Read from .env (frontend/.env.local -> NEXT_PUBLIC_API_URL). Update ONE
-// file when the backend URL changes - not every page (Session 7, Part 3).
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { getAuthHeaders, getApiUrl } from "./authService";
 
 /**
  * GET /api/v1/trips
@@ -12,7 +7,7 @@ const API_URL =
  * fast and free, no Bedrock call involved (Part 1: "two read paths").
  */
 export async function getTrips(): Promise<Trip[]> {
-  const res = await fetch(`${API_URL}/trips`, {
+  const res = await fetch(`${getApiUrl()}/trips`, {
     cache: "no-store",
     headers: getAuthHeaders(),
   });
@@ -30,7 +25,7 @@ export async function getTrips(): Promise<Trip[]> {
  * decide how to handle a missing trip (e.g. notFound()).
  */
 export async function getTrip(id: number): Promise<Trip | null> {
-  const res = await fetch(`${API_URL}/trips/${id}`, {
+  const res = await fetch(`${getApiUrl()}/trips/${id}`, {
     cache: "no-store",
     headers: getAuthHeaders(),
   });
@@ -51,7 +46,7 @@ export async function getTrip(id: number): Promise<Trip | null> {
  * Generates a new trip with Bedrock recommendation and associates user_id from JWT.
  */
 export async function generateTrip(data: TripRequest): Promise<Trip> {
-  const res = await fetch(`${API_URL}/trips`, {
+  const res = await fetch(`${getApiUrl()}/trips`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -73,7 +68,7 @@ export async function generateTrip(data: TripRequest): Promise<Trip> {
  * Deletes a trip from PostgreSQL database.
  */
 export async function deleteTrip(id: number): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/trips/${id}`, {
+  const res = await fetch(`${getApiUrl()}/trips/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });

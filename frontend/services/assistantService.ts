@@ -1,7 +1,4 @@
-import { getAuthHeaders } from "./authService";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { getAuthHeaders, getApiUrl } from "./authService";
 
 export interface ChatMessage {
   id?: string;
@@ -40,7 +37,7 @@ export interface AskResponse {
  * Fetch all chat conversations from DB backend.
  */
 export async function getConversations(): Promise<ConversationResponse[]> {
-  const res = await fetch(`${API_URL}/conversations`, {
+  const res = await fetch(`${getApiUrl()}/conversations`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -54,7 +51,7 @@ export async function getConversations(): Promise<ConversationResponse[]> {
  * Create a new chat session in DB backend.
  */
 export async function createConversation(title: string = "Obrolan Baru"): Promise<ConversationResponse> {
-  const res = await fetch(`${API_URL}/conversations`, {
+  const res = await fetch(`${getApiUrl()}/conversations`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ title }),
@@ -70,7 +67,7 @@ export async function createConversation(title: string = "Obrolan Baru"): Promis
  * Get a specific conversation and all its persisted messages.
  */
 export async function getConversationDetail(conversationId: string): Promise<ConversationResponse> {
-  const res = await fetch(`${API_URL}/conversations/${conversationId}`, {
+  const res = await fetch(`${getApiUrl()}/conversations/${conversationId}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -84,7 +81,7 @@ export async function getConversationDetail(conversationId: string): Promise<Con
  * Delete a conversation from DB backend.
  */
 export async function deleteConversationApi(conversationId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/conversations/${conversationId}`, {
+  const res = await fetch(`${getApiUrl()}/conversations/${conversationId}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
@@ -101,7 +98,7 @@ export async function renameConversationApi(
   conversationId: string,
   newTitle: string
 ): Promise<ConversationResponse> {
-  const res = await fetch(`${API_URL}/conversations/${conversationId}`, {
+  const res = await fetch(`${getApiUrl()}/conversations/${conversationId}`, {
     method: "PATCH",
     headers: getAuthHeaders(),
     body: JSON.stringify({ title: newTitle }),
@@ -122,7 +119,7 @@ export async function askKnowledgeBase(
   history?: ChatMessage[],
   user_documents?: UserDocument[]
 ): Promise<AskResponse> {
-  const res = await fetch(`${API_URL}/ask`, {
+  const res = await fetch(`${getApiUrl()}/ask`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({

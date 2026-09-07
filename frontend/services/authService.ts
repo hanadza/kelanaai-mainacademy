@@ -1,5 +1,26 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+export function getApiUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
+  }
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    return "/api/v1";
+  }
+  return "http://localhost:8000/api/v1";
+}
+
+function getNetworkErrorMessage(): string {
+  const isLocal =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
+  return isLocal
+    ? "Gagal terhubung ke server backend. Pastikan server FastAPI (port 8000) sedang berjalan."
+    : "Gagal terhubung ke server backend KelanaAI. Mohon pastikan URL backend (NEXT_PUBLIC_API_URL) telah terkonfigurasi di Vercel.";
+}
 
 export interface User {
   id: number;
@@ -31,7 +52,7 @@ function parseErrorMessage(data: any, fallback: string): string {
 
 export async function getProfile(): Promise<UserProfile> {
   try {
-    const res = await fetch(`${API_URL}/auth/me`, {
+    const res = await fetch(`${getApiUrl()}/auth/me`, {
       headers: getAuthHeaders(),
     });
 
@@ -43,7 +64,7 @@ export async function getProfile(): Promise<UserProfile> {
     return data;
   } catch (err: any) {
     if (err.name === "TypeError" || err.message?.includes("fetch")) {
-      throw new Error("Gagal terhubung ke server backend. Pastikan server FastAPI (port 8000) sedang berjalan.");
+      throw new Error(getNetworkErrorMessage());
     }
     throw err;
   }
@@ -57,7 +78,7 @@ export async function loginWithGoogle(
   avatar?: string
 ): Promise<AuthResponse> {
   try {
-    const res = await fetch(`${API_URL}/auth/google`, {
+    const res = await fetch(`${getApiUrl()}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ credential, token: credential, name, email, google_id, avatar }),
@@ -76,7 +97,7 @@ export async function loginWithGoogle(
     return data;
   } catch (err: any) {
     if (err.name === "TypeError" || err.message?.includes("fetch")) {
-      throw new Error("Gagal terhubung ke server backend. Pastikan server FastAPI (port 8000) sedang berjalan.");
+      throw new Error(getNetworkErrorMessage());
     }
     throw err;
   }
@@ -84,7 +105,7 @@ export async function loginWithGoogle(
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {
+    const res = await fetch(`${getApiUrl()}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -103,7 +124,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
     return data;
   } catch (err: any) {
     if (err.name === "TypeError" || err.message?.includes("fetch")) {
-      throw new Error("Gagal terhubung ke server backend (http://localhost:8000). Pastikan server FastAPI sedang berjalan.");
+      throw new Error(getNetworkErrorMessage());
     }
     throw err;
   }
@@ -115,7 +136,7 @@ export async function register(
   password: string
 ): Promise<{ message: string; user: User }> {
   try {
-    const res = await fetch(`${API_URL}/auth/register`, {
+    const res = await fetch(`${getApiUrl()}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password }),
@@ -129,7 +150,7 @@ export async function register(
     return data;
   } catch (err: any) {
     if (err.name === "TypeError" || err.message?.includes("fetch")) {
-      throw new Error("Gagal terhubung ke server backend (http://localhost:8000). Pastikan server FastAPI sedang berjalan.");
+      throw new Error(getNetworkErrorMessage());
     }
     throw err;
   }
@@ -174,7 +195,7 @@ export function getAuthHeaders(): Record<string, string> {
 
 export async function requestForgotPassword(email: string): Promise<{ message: string; otp?: string }> {
   try {
-    const res = await fetch(`${API_URL}/auth/forgot-password`, {
+    const res = await fetch(`${getApiUrl()}/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -195,7 +216,7 @@ export async function requestForgotPassword(email: string): Promise<{ message: s
 
 export async function verifyOTP(email: string, otp: string): Promise<{ message: string }> {
   try {
-    const res = await fetch(`${API_URL}/auth/verify-otp`, {
+    const res = await fetch(`${getApiUrl()}/auth/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, otp }),
@@ -220,7 +241,7 @@ export async function resetPassword(
   new_password: string
 ): Promise<{ message: string }> {
   try {
-    const res = await fetch(`${API_URL}/auth/reset-password`, {
+    const res = await fetch(`${getApiUrl()}/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, otp, new_password }),
