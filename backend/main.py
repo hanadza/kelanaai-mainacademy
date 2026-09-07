@@ -192,11 +192,26 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
             detail="Format email tidak valid (contoh: user@email.com)."
         )
 
-    # 3. Validate Password length
-    if len(request.password) < 6:
+    # 3. Validate Password requirements
+    if len(request.password) < 8:
         raise HTTPException(
             status_code=400,
-            detail="Password minimal 6 karakter."
+            detail="Password minimal 8 karakter."
+        )
+    if not re.search(r"[0-9]", request.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password harus mengandung minimal 1 angka."
+        )
+    if not re.search(r"[^A-Za-z0-9]", request.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password harus mengandung minimal 1 karakter spesial (contoh: $, !, @, %, &)."
+        )
+    if request.password.strip() != request.password:
+        raise HTTPException(
+            status_code=400,
+            detail="Password tidak boleh diawali atau diakhiri dengan spasi."
         )
 
     # 4. Check duplicate email in PostgreSQL DB
@@ -280,19 +295,36 @@ def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
     google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
 
     if token:
+        verified_info = None
+        # 1. Try Google ID Token verification
         try:
-            # Verify Google OAuth2 ID Token
-            id_info = id_token.verify_oauth2_token(
+            verified_info = id_token.verify_oauth2_token(
                 token,
                 google_requests.Request(),
                 google_client_id if google_client_id else None
             )
-            email = id_info.get("email") or email
-            name = id_info.get("name") or name or (email.split("@")[0] if email else "Google User")
-            google_id = id_info.get("sub") or google_id
-            avatar = id_info.get("picture") or avatar
         except Exception:
             pass
+
+        # 2. Fallback to Google Userinfo endpoint if token is an OAuth2 Access Token
+        if not verified_info:
+            try:
+                import requests
+                resp = requests.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    verified_info = resp.json()
+            except Exception:
+                pass
+
+        if verified_info:
+            email = verified_info.get("email") or email
+            name = verified_info.get("name") or name or (email.split("@")[0] if email else "Google User")
+            google_id = verified_info.get("sub") or google_id
+            avatar = verified_info.get("picture") or avatar
 
     if not email:
         raise HTTPException(
@@ -433,10 +465,25 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
     clean_otp = request.otp.strip()
     new_password = request.new_password
 
-    if len(new_password) < 6:
+    if len(new_password) < 8:
         raise HTTPException(
             status_code=400,
-            detail="Password baru minimal 6 karakter."
+            detail="Password baru minimal 8 karakter."
+        )
+    if not re.search(r"[0-9]", new_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password baru harus mengandung minimal 1 angka."
+        )
+    if not re.search(r"[^A-Za-z0-9]", new_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password baru harus mengandung minimal 1 karakter spesial (contoh: $, !, @, %, &)."
+        )
+    if new_password.strip() != new_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Password baru tidak boleh diawali atau diakhiri dengan spasi."
         )
 
     user = db.query(User).filter(User.email == clean_email).first()
@@ -611,6 +658,15 @@ def delete_trip(
 
 # Session 10 - Conversation History & Memory Endpoints
 
+def format_local_timestamp(dt: Optional[datetime]) -> str:
+    """Convert UTC or naive datetime to local machine timezone formatted as HH:MM."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone().strftime("%H:%M")
+
+
 @app.get("/api/v1/conversations")
 def list_conversations(
     current_user: Optional[User] = Depends(get_optional_current_user),
@@ -625,7 +681,7 @@ def list_conversations(
             "conversation_id": c.id,
             "title": c.title,
             "user_id": c.user_id,
-            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else "",
+            "created_at": c.created_at.astimezone().strftime("%Y-%m-%d %H:%M") if c.created_at else "",
             "messages_count": len(c.messages),
         }
         for c in convs
@@ -647,7 +703,7 @@ def create_new_conversation(
         "id": str(conv.id),
         "title": conv.title,
         "user_id": conv.user_id,
-        "created_at": conv.created_at,
+        "created_at": conv.created_at.isoformat() if conv.created_at else None,
         "messages": [],
     }
 
@@ -669,14 +725,14 @@ def get_conversation_detail(
         "id": str(conv.id),
         "title": conv.title,
         "user_id": conv.user_id,
-        "created_at": conv.created_at,
+        "created_at": conv.created_at.isoformat() if conv.created_at else None,
         "messages": [
             {
                 "id": str(m.id),
                 "role": m.role,
                 "content": m.content,
-                "created_at": m.created_at,
-                "timestamp": m.created_at.strftime("%H:%M") if m.created_at else "",
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "timestamp": format_local_timestamp(m.created_at),
             }
             for m in conv.messages
         ],
@@ -776,8 +832,8 @@ def send_message_endpoint(
                     "id": m.id,
                     "role": m.role,
                     "content": m.content,
-                    "created_at": m.created_at,
-                    "timestamp": m.created_at.strftime("%H:%M") if m.created_at else "",
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                    "timestamp": format_local_timestamp(m.created_at),
                 }
                 for m in conversation.messages
             ],
@@ -815,6 +871,15 @@ def ask_endpoint(
         if not conversation:
             default_title = request.question[:30] + ("..." if len(request.question) > 30 else "")
             conversation = create_conversation(db, title=default_title, user_id=user_id)
+
+        # Server-side Guest Quota Guard (3 questions max)
+        if current_user is None:
+            user_msg_count = sum(1 for m in conversation.messages if m.role == "user")
+            if user_msg_count >= 3:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Batas 3 pertanyaan gratis tercapai. Silakan Login atau Register untuk terus bertanya tanpa batas & menyimpan riwayat!"
+                )
 
         # 2. Persist the new user question message in DB
         add_message(db, conversation_id=conversation.id, role="user", content=request.question)
@@ -854,15 +919,18 @@ def ask_endpoint(
                     "id": str(m.id),
                     "role": m.role,
                     "content": m.content,
-                    "created_at": m.created_at,
-                    "timestamp": m.created_at.strftime("%H:%M") if m.created_at else "",
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                    "timestamp": format_local_timestamp(m.created_at),
                 }
                 for m in conversation.messages
             ],
         }
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
+        print(f"[ASK API ERROR] {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to query Knowledge Base: {str(e)}"
+            detail="Terjadi kendala koneksi ke server. Silakan coba lagi beberapa saat lagi."
         )

@@ -74,6 +74,20 @@ export default function AssistantPage() {
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession ? activeSession.messages : [];
 
+  // Helper: Format ISO timestamp or server timestamp into local browser timezone
+  function formatLocalTime(createdAt?: string | Date, serverTimestamp?: string): string {
+    if (createdAt) {
+      const d = new Date(createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+    }
+    if (serverTimestamp && serverTimestamp.includes(":")) {
+      return serverTimestamp;
+    }
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
   // Load detailed messages for a given session ID from backend
   async function loadConversationMessages(sessId: string) {
     try {
@@ -82,7 +96,7 @@ export default function AssistantPage() {
         id: m.id || Date.now().toString(),
         role: m.role,
         content: m.content,
-        timestamp: m.timestamp || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: formatLocalTime(m.created_at, m.timestamp),
         source: m.role === "assistant" ? "AWS Knowledge Base Verified" : undefined,
       }));
 
@@ -397,7 +411,7 @@ export default function AssistantPage() {
           id: m.id || `${Date.now()}_${idx}`,
           role: m.role as "user" | "assistant",
           content: m.content,
-          timestamp: m.timestamp || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          timestamp: formatLocalTime(m.created_at, m.timestamp),
           source: m.role === "assistant" ? sourceCitation : undefined,
         }));
 
@@ -437,11 +451,16 @@ export default function AssistantPage() {
           )
         );
       }
-    } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Gagal mengambil jawaban dari Knowledge Base.";
+    } catch (err: any) {
+      let msg = err?.message || "Gagal mengambil jawaban dari Knowledge Base.";
+      if (
+        msg.includes("psycopg2") ||
+        msg.includes("OperationalError") ||
+        msg.includes("SQL") ||
+        msg.includes("Failed to query Knowledge Base")
+      ) {
+        msg = "Gagal terhubung ke server database. Silakan coba lagi beberapa saat lagi.";
+      }
       setError(msg);
     } finally {
       setLoading(false);
@@ -510,6 +529,12 @@ export default function AssistantPage() {
                 </Link>
               </div>
             )}
+            <Link
+              href="/about"
+              className="border-2 border-slate-900 bg-[#fffdf8] hover:bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-[2px_2px_0_#18221f] no-underline"
+            >
+              ABOUT
+            </Link>
             <Link
               href="/trips"
               className="border-2 border-slate-900 bg-[#fffdf8] px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-[2px_2px_0_#176b50] no-underline"
@@ -705,11 +730,56 @@ export default function AssistantPage() {
             </div>
           )}
 
-          {/* Error Notification */}
+          {/* Error Notification / Quota Alert Banner */}
           {error && (
-            <div className="p-2 bg-red-50 border-b-2 border-red-500 text-xs text-red-900 shrink-0">
-              <strong>Error: </strong> {error}
-            </div>
+            error.includes("Batas 3") || error.includes("tercapai") || error.includes("Login") ? (
+              <div className="p-3 bg-[#f4dc4d] border-b-2 border-slate-900 text-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl shrink-0">🔒</span>
+                  <div>
+                    <span className="font-black text-xs block uppercase tracking-wider text-slate-950">Batas Pertanyaan Gratis Tercapai</span>
+                    <p className="text-xs font-medium text-slate-900 mt-0.5">{error}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                  <Link
+                    href="/login"
+                    className="flex-1 sm:flex-none text-center border-2 border-slate-900 bg-[#176b50] hover:bg-[#0f4333] text-white px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0_#0f4333] active:translate-x-0.5 active:translate-y-0.5 no-underline rounded-lg transition-all"
+                  >
+                    🔑 LOGIN
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="flex-1 sm:flex-none text-center border-2 border-slate-900 bg-white hover:bg-slate-100 text-slate-900 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0_#18221f] active:translate-x-0.5 active:translate-y-0.5 no-underline rounded-lg transition-all"
+                  >
+                    ✨ REGISTER
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setError("")}
+                    className="text-xs font-black text-slate-700 hover:text-slate-950 p-1 cursor-pointer ml-1"
+                    title="Tutup pesan ini"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-red-50 border-b-2 border-red-500 text-red-900 flex items-center justify-between gap-2 shrink-0 text-xs font-medium">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">⚠️</span>
+                  <span>{error}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setError("")}
+                  className="text-xs font-bold text-red-700 hover:text-red-950 p-1 cursor-pointer"
+                  title="Tutup"
+                >
+                  ✕
+                </button>
+              </div>
+            )
           )}
 
           {/* Scrollable Conversation Thread Container */}

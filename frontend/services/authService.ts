@@ -60,7 +60,7 @@ export async function loginWithGoogle(
     const res = await fetch(`${API_URL}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential, name, email, google_id, avatar }),
+      body: JSON.stringify({ credential, token: credential, name, email, google_id, avatar }),
     });
 
     const data = await res.json().catch(() => null);

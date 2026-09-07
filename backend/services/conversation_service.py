@@ -45,6 +45,8 @@ def get_conversation_by_id(
     query = db.query(Conversation).filter(Conversation.id == conversation_id)
     if user_id is not None:
         query = query.filter(Conversation.user_id == user_id)
+    else:
+        query = query.filter(Conversation.user_id.is_(None))
     return query.first()
 
 

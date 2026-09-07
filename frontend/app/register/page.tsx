@@ -35,9 +35,21 @@ export default function RegisterPage() {
       return;
     }
 
-    // 3. Validate Password Length
-    if (password.length < 6) {
-      setError("Password minimal 6 karakter.");
+    // 3. Validate Password Requirements
+    if (password.length < 8) {
+      setError("Password harus memiliki minimal 8 karakter.");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("Password harus mengandung minimal 1 angka.");
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setError("Password harus mengandung minimal 1 karakter spesial (contoh: $, !, @, %, &).");
+      return;
+    }
+    if (password.trim() !== password) {
+      setError("Password tidak boleh diawali atau diakhiri dengan spasi.");
       return;
     }
 
@@ -206,46 +218,88 @@ export default function RegisterPage() {
               </button>
             </div>
 
-            {/* Password Strength Indicator */}
-            {password.length > 0 && (() => {
-              let score = 0;
-              if (password.length >= 6) score += 1;
-              if (password.length >= 8) score += 1;
-              if (/[0-9]/.test(password)) score += 1;
-              if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
-              if (/[^A-Za-z0-9]/.test(password)) score += 1;
+            {/* Password Requirements Checklist (Red when unmet, Green when met) */}
+            <div className="mt-3 space-y-1.5">
+              <p className="text-xs font-semibold text-[#176b50] mb-2">
+                Password requirements met
+              </p>
 
-              let label = "Lemah 🔴";
-              let color = "text-red-600 bg-red-50 border-red-200";
-              let barColor = "bg-red-500";
-              let barWidth = "w-1/3";
-
-              if (score >= 4) {
-                label = "Kuat 🟢";
-                color = "text-emerald-700 bg-emerald-50 border-emerald-200";
-                barColor = "bg-emerald-500";
-                barWidth = "w-full";
-              } else if (score >= 2) {
-                label = "Sedang 🟡";
-                color = "text-amber-700 bg-amber-50 border-amber-200";
-                barColor = "bg-amber-500";
-                barWidth = "w-2/3";
-              }
-
-              return (
-                <div className="mt-2 space-y-1.5 bg-gray-50/80 p-2.5 rounded-xl border border-gray-200/60">
-                  <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-gray-500">Kekuatan Password:</span>
-                    <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${color}`}>
-                      {label}
+              {/* Requirement 1: 8 characters */}
+              {(() => {
+                const isMet = password.length >= 8;
+                return (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all border ${
+                      isMet
+                        ? "bg-[#e6f4ea] text-[#137333] border-emerald-200"
+                        : "bg-red-50 text-red-700 border-red-200"
+                    }`}
+                  >
+                    <span className={isMet ? "text-[#137333] font-black" : "text-red-600 font-black"}>
+                      {isMet ? "✓" : "✗"}
                     </span>
+                    <span>8 characters</span>
                   </div>
-                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div className={`h-full ${barColor} ${barWidth} transition-all duration-300 rounded-full`} />
+                );
+              })()}
+
+              {/* Requirement 2: 1 number */}
+              {(() => {
+                const isMet = /[0-9]/.test(password);
+                return (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all border ${
+                      isMet
+                        ? "bg-[#e6f4ea] text-[#137333] border-emerald-200"
+                        : "bg-red-50 text-red-700 border-red-200"
+                    }`}
+                  >
+                    <span className={isMet ? "text-[#137333] font-black" : "text-red-600 font-black"}>
+                      {isMet ? "✓" : "✗"}
+                    </span>
+                    <span>1 number</span>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
+
+              {/* Requirement 3: 1 special character */}
+              {(() => {
+                const isMet = /[^A-Za-z0-9]/.test(password);
+                return (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all border ${
+                      isMet
+                        ? "bg-[#e6f4ea] text-[#137333] border-emerald-200"
+                        : "bg-red-50 text-red-700 border-red-200"
+                    }`}
+                  >
+                    <span className={isMet ? "text-[#137333] font-black" : "text-red-600 font-black"}>
+                      {isMet ? "✓" : "✗"}
+                    </span>
+                    <span>1 special character e.g., $, !, @, %, &</span>
+                  </div>
+                );
+              })()}
+
+              {/* Requirement 4: No leading or trailing whitespace */}
+              {(() => {
+                const isMet = password.length > 0 && password.trim() === password;
+                return (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all border ${
+                      isMet
+                        ? "bg-[#e6f4ea] text-[#137333] border-emerald-200"
+                        : "bg-red-50 text-red-700 border-red-200"
+                    }`}
+                  >
+                    <span className={isMet ? "text-[#137333] font-black" : "text-red-600 font-black"}>
+                      {isMet ? "✓" : "✗"}
+                    </span>
+                    <span>No leading or trailing whitespace</span>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
 
           <button

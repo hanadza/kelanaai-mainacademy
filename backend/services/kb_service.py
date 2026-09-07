@@ -113,14 +113,24 @@ def ask_knowledge_base(
         if user_doc_parts:
             formatted_user_docs = "Uploaded User Reference Documents:\n" + "\n\n".join(user_doc_parts) + "\n\n"
 
-    if not snippets and not formatted_user_docs:
-        return "Maaf, tidak ditemukan informasi yang relevan dalam Knowledge Base maupun Dokumen Referensi yang diunggah."
+    context = "\n\n".join(snippets) if snippets else "No specific AWS Knowledge Base passages retrieved."
 
-    context = "\n\n".join(snippets)
+    system_prompts = [
+        {
+            "text": (
+                "You are KelanaAI, an AI Travel Assistant dedicated strictly to travel planning, itineraries, destinations, travel guides, visas, local culture, transportation, accommodation, travel budgets, and travel advice.\n\n"
+                "STRICT DOMAIN BOUNDARY RULE:\n"
+                "1. You must ONLY answer topics related to travel, tourism, holiday planning, itineraries, travel documents/visas, destinations, local culture, transport, or travel tips.\n"
+                "2. If the user asks about topics OUTSIDE of travel (e.g. coding/programming, writing computer code, math equations, non-travel homework, medical diagnosis, financial advice unrelated to travel, or general non-travel queries):\n"
+                "   - You MUST politely decline to answer.\n"
+                "   - Respond in friendly Indonesian: 'Maaf, sebagai asisten perjalanan KelanaAI, saya hanya fokus membantu seputar perencanaan perjalanan, rekomendasi destinasi wisata, panduan visa, dan informasi liburan. Ada yang bisa saya bantu mengenai rencana perjalanan Anda?'\n"
+                "3. For travel questions, prioritize information from the provided AWS Knowledge Base passages and User Reference Documents. If specific document passages are not available, use your general travel knowledge to provide helpful and accurate travel advice in Indonesian (or the user's language)."
+            )
+        }
+    ]
+
     prompt = (
-        f"You are KelanaAI travel assistant. Answer the user's question accurately using ONLY the provided context information and reference documents below.\n"
-        f"If the context does not contain enough information to answer, state that clearly.\n"
-        f"Use the previous conversation history and user reference documents if helpful.\n\n"
+        f"Use the previous conversation history, user reference documents, and AWS Knowledge Base context below to answer the user's question.\n\n"
         f"{formatted_history}"
         f"{formatted_user_docs}"
         f"AWS Knowledge Base Context:\n{context}\n\n"
@@ -132,6 +142,7 @@ def ask_knowledge_base(
 
     llm_response = runtime_client.converse(
         modelId=model_id,
+        system=system_prompts,
         messages=[
             {
                 "role": "user",
