@@ -14,6 +14,9 @@ if not DATABASE_URL:
         "dan isi DATABASE_URL PostgreSQL."
     )
 
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 # engine = the connection pool
 engine = create_engine(DATABASE_URL)
 # SessionLocal = a factory for DB sessions
