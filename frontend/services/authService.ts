@@ -1,15 +1,19 @@
 export function getApiUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
-  }
-  if (
-    typeof window !== "undefined" &&
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const isBrowser = typeof window !== "undefined";
+  const isProductionBrowser =
+    isBrowser &&
     window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
-  ) {
-    return "/api/v1";
+    window.location.hostname !== "127.0.0.1";
+
+  // If in production browser and envUrl is missing or points to localhost, fallback to relative path /api/v1
+  if (isProductionBrowser) {
+    if (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
+      return "/api/v1";
+    }
   }
-  return "http://localhost:8000/api/v1";
+
+  return envUrl || "http://localhost:8000/api/v1";
 }
 
 function getNetworkErrorMessage(): string {
