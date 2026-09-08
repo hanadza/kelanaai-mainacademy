@@ -1,19 +1,26 @@
 export function getApiUrl(): string {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  let url = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "");
   const isBrowser = typeof window !== "undefined";
   const isProductionBrowser =
     isBrowser &&
     window.location.hostname !== "localhost" &&
     window.location.hostname !== "127.0.0.1";
 
-  // If in production browser and envUrl is missing or points to localhost, fallback to FastAPI Cloud URL
   if (isProductionBrowser) {
-    if (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
-      return "https://kelanaai-mainacademy-d7c718be.fastapicloud.dev/api/v1";
+    if (!url || url.includes("localhost") || url.includes("127.0.0.1")) {
+      url = "https://kelanaai-mainacademy-d7c718be.fastapicloud.dev/api/v1";
     }
   }
 
-  return envUrl || "http://localhost:8000/api/v1";
+  if (!url) {
+    url = "http://localhost:8000/api/v1";
+  }
+
+  if (!url.endsWith("/api/v1")) {
+    url = `${url}/api/v1`;
+  }
+
+  return url;
 }
 
 function getNetworkErrorMessage(): string {
