@@ -6,10 +6,10 @@ export function getApiUrl(): string {
     window.location.hostname !== "localhost" &&
     window.location.hostname !== "127.0.0.1";
 
-  // If in production browser and envUrl is missing or points to localhost, fallback to relative path /api/v1
+  // If in production browser and envUrl is missing or points to localhost, fallback to FastAPI Cloud URL
   if (isProductionBrowser) {
     if (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
-      return "/api/v1";
+      return "https://kelanaai-mainacademy-d7c718be.fastapicloud.dev/api/v1";
     }
   }
 
