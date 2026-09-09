@@ -38,7 +38,8 @@ export default function Home() {
     } catch (requestError) {
       setLoading(false);
       const msg = requestError instanceof Error ? requestError.message : "Unable to generate the trip.";
-      if (msg.includes("401")) {
+      if (msg.includes("401") || msg.toLowerCase().includes("expired") || msg.toLowerCase().includes("invalid")) {
+        logout();
         router.push("/login");
       } else {
         setError(msg);
@@ -53,7 +54,7 @@ export default function Home() {
   }
 
   return (
-    <main className="page-shell mx-auto flex min-h-screen lg:h-screen lg:max-h-screen lg:overflow-hidden w-full max-w-6xl flex-col justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-8 box-border">
+    <main className="page-shell mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-8 box-border">
       {/* Header */}
       <header className="intro mb-3 border-b-2 border-slate-900 pb-2.5 shrink-0">
         <div className="flex items-center justify-between gap-4">
