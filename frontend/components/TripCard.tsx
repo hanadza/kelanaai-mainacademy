@@ -124,7 +124,7 @@ export default function TripCard({ trip }: { trip: Trip }) {
               </span>
             </div>
 
-            {/* Metadata (Duration, Budget, Season/Month) */}
+            {/* Metadata (Duration, Budget, Season/Month, Language) */}
             <p className="text-xs sm:text-sm font-medium text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>📅 {trip.days} Days</span>
               <span className="text-slate-300">·</span>
@@ -133,6 +133,14 @@ export default function TripCard({ trip }: { trip: Trip }) {
                 <>
                   <span className="text-slate-300">·</span>
                   <span>🗓️ {trip.month}</span>
+                </>
+              )}
+              {trip.language && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span className="font-bold text-slate-700">
+                    {trip.language.toLowerCase() === "indonesian" ? "🇮🇩 ID" : "🇬🇧 EN"}
+                  </span>
                 </>
               )}
             </p>

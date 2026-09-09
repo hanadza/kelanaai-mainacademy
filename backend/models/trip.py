@@ -17,6 +17,7 @@ class Trip(Base):
     travel_style        = Column(String,    nullable=False)
     category            = Column(String,    nullable=False)
     daily_budget        = Column(Float,     nullable=False)
+    language            = Column(String,    nullable=False, server_default="Indonesian")
     ai_recommendation   = Column(Text,      nullable=True)
 
     create_at           = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

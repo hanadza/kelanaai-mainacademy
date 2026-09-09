@@ -88,6 +88,7 @@ class TripRequest(BaseModel):
     budget:         float
     month:          str
     travel_style:   str
+    language:       Optional[str] = "Indonesian"
 
 class TripUpdate(BaseModel):
     budget: float
@@ -540,6 +541,7 @@ def create_trip(
     daily_budget = calculate_daily_budget(request.budget, request.days)
     category = get_trip_category(request.budget)
     travel_season = get_travel_season(request.month)
+    lang = request.language or "Indonesian"
     ai_recommendation = get_ai_recommendation(
         destination=request.destination,
         days=request.days,
@@ -547,6 +549,7 @@ def create_trip(
         month=request.month,
         travel_style=request.travel_style,
         travel_season=travel_season,
+        language=lang,
     )
 
     # Automatically assign user_id from the authenticated JWT token
@@ -560,6 +563,7 @@ def create_trip(
         daily_budget        = daily_budget,
         travel_style        = request.travel_style,
         category            = category,        
+        language            = lang,
         ai_recommendation   = ai_recommendation,
     )
 
@@ -589,6 +593,7 @@ def generate_trip_recommendation(
             month=trip.month,
             travel_style=trip.travel_style,
             travel_season=trip.travel_season,
+            language=getattr(trip, "language", "Indonesian") or "Indonesian",
         )
 
         trip.ai_recommendation = recommendation

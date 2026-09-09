@@ -32,6 +32,7 @@ export default function TripForm({ onGenerate, loading }: TripFormProps) {
   const [days, setDays] = useState("");
   const [month, setMonth] = useState("April");
   const [travelStyle, setTravelStyle] = useState("Family");
+  const [language, setLanguage] = useState("Indonesian");
 
   // Autocomplete state
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -111,6 +112,7 @@ export default function TripForm({ onGenerate, loading }: TripFormProps) {
       days: Number(days),
       month: month.trim(),
       travel_style: travelStyle.trim(),
+      language: language,
     });
   }
 
@@ -267,6 +269,26 @@ export default function TripForm({ onGenerate, loading }: TripFormProps) {
               <option value="October">October</option>
               <option value="November">November</option>
               <option value="December">December</option>
+            </select>
+          </span>
+        </label>
+      </div>
+
+      {/* Itinerary Output Language Selector */}
+      <div className="space-y-1">
+        <label className="!gap-1 !text-[11px]">
+          <div className="flex items-center justify-between">
+            <span>Itinerary Language</span>
+            <span className="text-[10px] font-normal normal-case text-slate-500">Bedrock AI Translation</span>
+          </div>
+          <span className="select-wrapper">
+            <select
+              className="!py-1.5 !text-sm"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+            >
+              <option value="Indonesian">🇮🇩 Bahasa Indonesia</option>
+              <option value="English">🇬🇧 English</option>
             </select>
           </span>
         </label>

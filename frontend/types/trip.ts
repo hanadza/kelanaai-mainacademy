@@ -8,6 +8,7 @@ export interface Trip {
   travel_style: string;
   category: string;
   daily_budget: number;
+  language?: string;
   ai_recommendation: string | null;
 }
 
@@ -17,4 +18,5 @@ export interface TripRequest {
   days: number;
   month: string;
   travel_style: string;
+  language?: string;
 }
