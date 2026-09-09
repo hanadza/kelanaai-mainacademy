@@ -362,6 +362,22 @@ Session 10.2 menambahkan fitur **Reset Password dengan Kode OTP 6-Digit** untuk 
    - **Regex Email Crosscheck**: Validates email format on frontend and backend (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) to reject plain non-email strings.
    - **Real-Time Name Input Filter**: Restricts name input to letters, spaces, hyphens, and apostrophes only.
 
+## Session 12 - Version 1.2 (V2.0 Feature Challenge: Multi-language Itineraries)
+
+KelanaAI Release **v1.2** menambahkan fitur unggulan **Multi-language Itineraries** (berfokus pada **Bahasa Indonesia 🇮🇩** dan **English 🇬🇧**) untuk memungkinkan pembuatan jadwal perjalanan secara kustom dalam bahasa pilihan pengguna via AWS Bedrock Nova Lite.
+
+### Key Features in v1.2:
+1. **Dynamic Bedrock AI Translation**:
+   - `get_ai_recommendation` pada `backend/services/bedrock_service.py` memproses parameter `language` dan secara cerdas menghasilkan Markdown itinerary dalam bahasa pilihan (Bahasa Indonesia / English).
+2. **Database & API Endpoint Support**:
+   - Skema database PostgreSQL (`trips`) mendukung kolom `language` dengan migrasi otomatis.
+   - Endpoint `POST /api/v1/trips` dan `POST /api/v1/trips/{id}/generate` menerima field `language`.
+3. **UI Selector & Language Badges**:
+   - Pemilih bahasa **Itinerary Language** pada `TripForm.tsx` (Homepage).
+   - Indikator bendera bahasa (`🇮🇩 ID` / `🇬🇧 EN`) pada setiap `TripCard.tsx` di Dashboard `My Trips`.
+
+---
+
 ## Google OAuth 2.0 Configuration Guide
 
 KelanaAI mendukung **Single-Click Register & Login** menggunakan akun Google. Pengguna dapat mendaftar/masuk langsung dengan akun Google mereka tanpa perlu mengisi form registrasi manual, dan secara otomatis terdaftar di database PostgreSQL `users`.
